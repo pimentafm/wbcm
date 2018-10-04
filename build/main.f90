@@ -48,6 +48,28 @@ program calcCarbon
   use WBCM
   implicit none
 
-  call test(30, earth_radius)
+
+  type(nc2d_float_lld) :: indata
+ 
+  character(len=32) :: input, output
+ 
+  input = "database/input/BGB.nc"
+  output = "database/output/BGB.nc"
+ 
+  !Definition of attributes for reading the dataset
+  indata%varname = "biomass"
+  indata%lonname = "lon"
+  indata%latname = "lat"
+ 
+  !Reads data from file
+  call readgrid(input, indata)
+ 
+  !Definition of new variable unit
+  indata%varunits = "ton C h-1"
+  indata%varname = "biomass"
+ 
+ 
+  !Write the data on file
+  call writegrid(output, indata)
 
 end program calcCarbon

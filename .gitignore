@@ -1,0 +1,26 @@
+#Fortran Modules
+*.mod
+
+#Compiled Object Files
+*.o
+
+#Executables
+*.exe
+*.out
+*.bin
+
+#File Types
+*.nc
+*.prn
+*.swp
+*.swo
+*.pdf
+*.so
+*.xml
+
+#directory
+*.directory
+
+#kdevelop files
+*.kdev4*
+*.kate-swp
