@@ -59,19 +59,13 @@ program calcCarbon
   type(nc2d_float_lld) :: pre_agb, agb_before, agb_after, rtime
   type(nc2d_byte_lld) :: lu_before, lu_after
 
-  ! ------- Parameters
-  !input_<other name>: File directory path of the <other name>
-  character(len=200) :: input_pre_agb, input_lu_before, input_luafter, input_rtime
-
   ! ------- Auxiliary variables
   !Initialize the input parameters
+  integer(kind=4) :: k
+  character(len=4) :: year, last_year
+
   include "parameters.inc"
 
-  input_pre_agb = "database/input/AGB.nc"
-  input_lu_before = "database/input/classification1990.nc"
-  input_luafter = "database/input/classification1991.nc"
-  input_rtime = "database/input/rtime.nc"
- 
   lu_before%varname = "class"
   lu_before%lonname = "lon"
   lu_before%latname = "lat"
@@ -88,24 +82,38 @@ program calcCarbon
   rtime%lonname = "lon"
   rtime%latname = "lat"
   
-  call readgrid(input_pre_agb, pre_agb)
-  call readgrid(input_lu_before, lu_before)
-  call readgrid(input_luafter, lu_after)
-  call readgrid(input_rtime, rtime)
+  call readgrid(trim(adjustl(input_dir))//"AGB.nc", pre_agb)
+  call readgrid(trim(adjustl(input_dir))//"rtime.nc", rtime)
 
-  !Gera biomassa inicial 1990 
 
-  write(*,*) "Aboveground biomass  - 1990"
-  call genInitialCarbon(agb_before, pre_agb, lu_before, avgAGB)
+  do k = 1990, 2018
+    write(year, '(i4)') k
+    write(*,*) "Aboveground biomass - ", year
 
-  call writegrid("database/output/AGB1990.nc", agb_before)
+    if(k.eq.1990) then
+      call readgrid(trim(adjustl(input_dir))//"classification"//year//".nc", lu_before)
+      
+      call genInitialCarbon(agb_before, pre_agb, lu_before, avgAGB)
+      
+      call writegrid(trim(adjustl(output_dir))//"AGB"//year//".nc", agb_before)
+      
+      call dealloc(lu_before)
+    else
+      !Biomass of the next year
+     
+      write(last_year, '(i4)') k - 1
+     
+      call readgrid(trim(adjustl(input_dir))//"classification"//last_year//".nc", lu_before)
+      call readgrid(trim(adjustl(input_dir))//"classification"//year//".nc", lu_after)
 
-  !do k = 1991, 2018
-  write(*,*) "Aboveground biomass  - 1991"
-  call genAGB(agb_after, agb_before, lu_after, lu_before, rtime, avgAGB)
+      call genAGB(agb_after, agb_before, lu_after, lu_before, rtime, avgAGB)
   
-  call writegrid("database/output/AGB1991.nc", agb_after)
-  !end do
+      call writegrid(trim(adjustl(output_dir))//"AGB"//year//".nc", agb_after)
+      
+      call dealloc(lu_before)
+      call dealloc(lu_after)
+    end if
+  end do
 
 end program calcCarbon
 

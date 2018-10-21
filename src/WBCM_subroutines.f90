@@ -163,6 +163,8 @@ subroutine genAGB(agb_after, agb_before, lu_after, lu_before, rtime, avgAGB)
     end do
     !$omp end parallel do
   end do
+  
+  agb_before = agb_after
  
   agb_after%varunits = 't C ha-1'
 end subroutine genAGB 
