@@ -11,6 +11,7 @@
 
 #File Types
 *.nc
+*.tif
 *.prn
 *.swp
 *.swo

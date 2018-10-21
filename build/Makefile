@@ -75,7 +75,10 @@ WBCM_library=-lWBCM
 FLAGS= -Wall -O3
 OMP= -fopenmp
 
+FPL_module=-I/usr/lib64/gfortran/modules/
+FPL_library=-lFPL
+
 compile:
-	gfortran $(FLAGS) $(OMP) -o calcCarbon.out main.f90 $(WBCM_module) $(WBCM_library)
+	gfortran $(FLAGS) $(OMP) -o calcCarbon.out main.f90 $(WBCM_module) $(WBCM_library) $(FPL_module) $(FPL_library)
 clean:
 	rm -f *.out
