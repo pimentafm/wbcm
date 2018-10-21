@@ -66,6 +66,16 @@ elemental subroutine str2int(str,int,stat)
 end subroutine str2int
 
 subroutine genInitialCarbon(agb_before, pre_agb, lu_before, avgAGB)
+  ! Calculate the above ground biomass for the first year of the landuse time serie
+
+  !Variables
+    ! pre_agb: Above ground biomass in the past
+    ! lu_before: Landuse classification of the first year of time serie
+    ! avgAGB: Average above ground biomass of the classification dataset
+   
+    !Output
+      ! agb_before: Above ground biomass of the first year of the landuse time serie
+
   type(nc2d_float_lld) :: pre_agb, agb_before
   type(nc2d_byte_lld) :: lu_before
 
@@ -99,20 +109,31 @@ subroutine genInitialCarbon(agb_before, pre_agb, lu_before, avgAGB)
 end subroutine genInitialCarbon
 
 subroutine genAGB(agb_after, agb_before, lu_after, lu_before, rtime, avgAGB)
+  ! Calculates the above-ground biomass of the first year of 
+  ! the land use series considering the biomass calculated before.
+
+  !Variables
+    ! pre_before: Above ground biomass of a year before
+    ! lu_after: Landuse classification of the next year
+    ! lu_before: Landuse classification of the year before
+    ! rtime: Redidence time of the landuse classes
+    ! avgAGB: Average above ground biomass of the classification dataset
+    
+    !Output
+     ! agb_after: Above ground biomass of next year
+
   type(nc2d_float_lld) :: agb_after, agb_before, rtime
   type(nc2d_byte_lld) :: lu_after, lu_before
-
 
   real(kind=4), dimension(9) :: avgAGB
   integer(kind=4) :: i, j
   
   agb_after = agb_before
 
-  write(*,*) NPP
   do i = 1, lu_after%nlons
     !$omp parallel do private(j)
     do j = 1, lu_after%nlats
-      ! conversão de área natural para área natural
+      !Change: natural -> natural
       if(lu_before%ncdata(i,j).eq.1.and.lu_after%ncdata(i,j).eq.2) then
         agb_after%ncdata(i,j) = avgAGB(2)
       else if(lu_before%ncdata(i,j).eq.1.and.lu_after%ncdata(i,j).eq.3) then
@@ -125,7 +146,7 @@ subroutine genAGB(agb_after, agb_before, lu_after, lu_before, rtime, avgAGB)
         agb_after%ncdata(i,j) = avgAGB(1)
       else if(lu_before%ncdata(i,j).eq.3.and.lu_after%ncdata(i,j).eq.2) then
         agb_after%ncdata(i,j) = avgAGB(2)
-      ! conversão de área natural para área não-natural
+      !Change: natural -> nonnatural
       else if(lu_before%ncdata(i,j).le.3.and.lu_after%ncdata(i,j).eq.4) then
         agb_after%ncdata(i,j) = avgAGB(4)
       else if(lu_before%ncdata(i,j).le.3.and.lu_after%ncdata(i,j).eq.5) then
@@ -134,9 +155,9 @@ subroutine genAGB(agb_after, agb_before, lu_after, lu_before, rtime, avgAGB)
         agb_after%ncdata(i,j) = avgAGB(6)
       else if(lu_before%ncdata(i,j).le.3.and.lu_after%ncdata(i,j).eq.7) then
         agb_after%ncdata(i,j) = avgAGB(7)
-      ! conversão de área agrícola para área natural (recrescimento da vegetação)
+      !Change: Agriculture -> natural (vegetation regrowth)
       else if(lu_before%ncdata(i,j).ge.4.and.lu_before%ncdata(i,j).lt.8) then
-        ! Please check NPP units in initial parameters
+        !Please check NPP units in initial parameters
         agb_after%ncdata(i,j) = 10*NPP - (agb_before%ncdata(i,j)/rtime%ncdata(i,j))
       end if
     end do
