@@ -56,7 +56,7 @@ program calcCarbon
   !lu_before: Landuse classes in the last year (class number)
   !lu_after: Landuse classes in the present year (class number)
   !pre_biomass: Above ground biomass in the past (anisomorphy) (t ha-1)
-  type(nc2d_float_lld) :: pre_agb, agb_before, agb_after, rtime
+  type(nc2d_float_lld) :: pre_agb, agb_before, agb_after, rtime, emission
   type(nc2d_byte_lld) :: lu_before, lu_after
 
   ! ------- Auxiliary variables
@@ -85,7 +85,9 @@ program calcCarbon
   call readgrid(trim(adjustl(input_dir))//"AGB.nc", pre_agb)
   call readgrid(trim(adjustl(input_dir))//"rtime.nc", rtime)
 
-
+  
+  emission = pre_agb
+  
   do k = 1990, 2018
     write(year, '(i4)') k
     write(*,*) "Aboveground biomass - ", year
@@ -95,23 +97,41 @@ program calcCarbon
       
       call genInitialCarbon(agb_before, pre_agb, lu_before, avgAGB)
       
+      
+      call genInitialEmission(emission, pre_agb, agb_before)
+
       call writegrid(trim(adjustl(output_dir))//"AGB"//year//".nc", agb_before)
+      call writegrid(trim(adjustl(output_dir))//"emission"//year//".nc", emission)
       
       call dealloc(lu_before)
+      call dealloc(agb_before)
     else
+
       !Biomass of the next year
      
       write(last_year, '(i4)') k - 1
-     
+    
       call readgrid(trim(adjustl(input_dir))//"classification"//last_year//".nc", lu_before)
       call readgrid(trim(adjustl(input_dir))//"classification"//year//".nc", lu_after)
-
-      call genAGB(agb_after, agb_before, lu_after, lu_before, rtime, avgAGB)
-  
-      call writegrid(trim(adjustl(output_dir))//"AGB"//year//".nc", agb_after)
       
+      call readgrid(trim(adjustl(output_dir))//"AGB"//last_year//".nc", agb_before)
+
+      call genEmission(emission, agb_before, lu_after, lu_before, avgAGB)
+      
+      call writegrid(trim(adjustl(output_dir))//"emission"//year//".nc", emission)
+
+      !call readgrid(trim(adjustl(output_dir))//"emission"//year//".nc", emission)
+      
+      call genAGB(emission, agb_after, agb_before, lu_after, lu_before, rtime)
+      
+      call writegrid(trim(adjustl(output_dir))//"AGB"//year//".nc", agb_after)
+!
+!      
       call dealloc(lu_before)
       call dealloc(lu_after)
+!      call dealloc(agb_after)
+      call dealloc(agb_before)
+!      call dealloc(emission)
     end if
   end do
 
