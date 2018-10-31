@@ -173,11 +173,14 @@ subroutine genAGB(emission, agb_after, agb_before, lu_after, lu_before, rtime)
       !Change: natural -> natural or  natural -> agriculture
       if(lu_before%ncdata(i,j).le.3.and.lu_after%ncdata(i,j).le.3.or.lu_before%ncdata(i,j).le.3.and.lu_after%ncdata(i,j).gt.3) then
         agb_after%ncdata(i,j) = agb_before%ncdata(i,j) - emission%ncdata(i,j)
+      !Change: Agriculture -> agriculture
+      else if(lu_before%ncdata(i,j).ge.4.and.lu_before%ncdata(i,j).lt.8.and. &
+              lu_after%ncdata(i,j).ge.4.and.lu_after%ncdata(i,j).lt.8) then
+        agb_after%ncdata(i,j) = agb_before%ncdata(i,j) - emission%ncdata(i,j)
       !Change: Agriculture -> natural (vegetation regrowth)
       else if(lu_before%ncdata(i,j).ge.4.and.lu_before%ncdata(i,j).lt.8.and.lu_after%ncdata(i,j).le.3) then
         !Please check NPP units in initial parameters
         agb_after%ncdata(i,j) = (10*NPP - (agb_before%ncdata(i,j)/rtime%ncdata(i,j))) + agb_before%ncdata(i,j)
-
       end if
     end do
     !$omp end parallel do
@@ -249,42 +252,4 @@ end subroutine genAGB
 ! 
 !  agb_after%varunits = 't C ha-1'
 !end subroutine genAGB 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
