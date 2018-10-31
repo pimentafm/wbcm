@@ -52,8 +52,9 @@ module WBCM
   include "WBCM_params.f90"    !Parameter variables
   
   contains
+  include "WBCM_soc.f90" 
   include "WBCM_bgb.f90" 
-  include "WBCM_subroutines.f90" 
+  include "WBCM_agb.f90" 
   
 end module WBCM
 
