@@ -1,5 +1,4 @@
-=============================================================================
- Western Bahia Carbon Model
+# Western Bahia Carbon Model
  Copyright (C) 2018 Fernando Martins Pimenta
                     Emily Ane Dionizio
  
@@ -16,8 +15,7 @@
   You should have received a copy of the GNU General Public License
   along with WBCM.  If not, see <http://www.gnu.org/licenses/>.
  
- ============================================================================
-  About Authors:
+## About Authors:
   Fernando Martins Pimenta
    Student of Surveying and Cartographic Engineering
    Federal University of Viçosa - Brazil
@@ -38,13 +36,15 @@
   Research Group on Atmosphere-Biosphere Interaction
   Federal University of Viçosa
 
-  Contacts: fernando.m.pimenta@gmail.com, fernando.m.pimenta@ufv.br
-            emilyy.ane@gmail.com
-=============================================================================
+ Contacts: fernando.m.pimenta@gmail.com, fernando.m.pimenta@ufv.br
+           emilyy.ane@gmail.com
 
-Dependencies:
-             gcc-gfortran
-             netcdf-fortran
-             netcdf-fortran-devel
-             openmpi
-             FPL - Fortran Processing Library
+## Dependencies:
+	* gcc-gfortran
+	* netcdf-fortran
+	* netcdf-fortran-devel
+	* openmpi
+	* [FPL] - Fortran Processing Library
+
+
+[FPL]: <http://www.biosfera.dea.ufv.br/pt_BR/fpl-fortran-processing-library>
