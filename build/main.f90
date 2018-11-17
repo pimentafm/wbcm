@@ -63,7 +63,7 @@ program calcCarbon
 
   ! ------- Auxiliary variables
   !Initialize the input parameters
-  integer(kind=4) :: k, xx, yy
+  integer(kind=4) :: k
   character(len=4) :: year, last_year
 
   include "parameters.inc"
@@ -102,9 +102,6 @@ program calcCarbon
   emissionBGB = pre_bgb
   emissionSOC = pre_soc
 
-  xx = 1725
-  yy = 10122
-
   do k = 1990, 2018
     write(year, '(i4)') k
     
@@ -115,35 +112,19 @@ program calcCarbon
       
       !AGB --------------      
       call genInitialAGB(agb_before, pre_agb, lu_before, avgAGB)
-      call genInitialEmissionAGB(emissionAGB, pre_agb, agb_before)
-
-      write(*,*) lu_before%ncdata(xx,yy), & 
-                 agb_before%ncdata(xx,yy), &
-                 emissionAGB%ncdata(xx,yy),pre_agb%ncdata(xx,yy)
-            
-      call writegrid(trim(adjustl(output_dir))//"AGB"//year//".nc", agb_before)
-      call writegrid(trim(adjustl(output_dir))//"emissionAGB"//year//".nc", emissionAGB)
-
-      !BGB --------------      
       call genInitialBGB(bgb_before, pre_bgb, lu_before, avgBGB)
-      call genInitialEmissionBGB(emissionBGB, pre_bgb, bgb_before)
-
-      write(*,*) lu_before%ncdata(xx,yy), & 
-                 bgb_before%ncdata(xx,yy), &
-                 emissionBGB%ncdata(xx,yy),pre_bgb%ncdata(xx,yy)
-            
-      call writegrid(trim(adjustl(output_dir))//"BGB"//year//".nc", bgb_before)
-      call writegrid(trim(adjustl(output_dir))//"emissionBGB"//year//".nc", emissionBGB)
-      
-      !SOC --------------      
       call genInitialSOC(soc_before, pre_soc, lu_before, avgSOC)
+      
+      call genInitialEmissionAGB(emissionAGB, pre_agb, agb_before)
+      call genInitialEmissionBGB(emissionBGB, pre_bgb, bgb_before)
       call genInitialEmissionSOC(emissionSOC, pre_soc, soc_before, bgb_before)
 
-      write(*,*) lu_before%ncdata(xx,yy), & 
-                 soc_before%ncdata(xx,yy), &
-                 emissionSOC%ncdata(xx,yy),pre_soc%ncdata(xx,yy)
-            
+      call writegrid(trim(adjustl(output_dir))//"AGB"//year//".nc", agb_before)
+      call writegrid(trim(adjustl(output_dir))//"BGB"//year//".nc", bgb_before)
       call writegrid(trim(adjustl(output_dir))//"SOC"//year//".nc", soc_before)
+      
+      call writegrid(trim(adjustl(output_dir))//"emissionAGB"//year//".nc", emissionAGB)
+      call writegrid(trim(adjustl(output_dir))//"emissionBGB"//year//".nc", emissionBGB)
       call writegrid(trim(adjustl(output_dir))//"emissionSOC"//year//".nc", emissionSOC)
 
       call dealloc(lu_before)
@@ -154,71 +135,37 @@ program calcCarbon
       !Pools of the next year
       write(last_year, '(i4)') k - 1
     
-      !AGB --------------      
       call readgrid(trim(adjustl(input_dir))//"classification"//last_year//".nc", lu_before)
       call readgrid(trim(adjustl(input_dir))//"classification"//year//".nc", lu_after)
       
       call readgrid(trim(adjustl(output_dir))//"AGB"//last_year//".nc", agb_before)
-
-      call genEmissionAGB(emissionAGB, agb_before, lu_after, lu_before, avgAGB)
-      
-      call writegrid(trim(adjustl(output_dir))//"emissionAGB"//year//".nc", emissionAGB)
-
-      call genAGB(emissionAGB, agb_after, agb_before, lu_after, lu_before, rtime)
-      
-
-      write(*,*) lu_after%ncdata(xx,yy), lu_before%ncdata(xx,yy), & 
-                 agb_after%ncdata(xx,yy), agb_before%ncdata(xx,yy), &
-                 emissionAGB%ncdata(xx,yy),pre_agb%ncdata(xx,yy)
-
-      call writegrid(trim(adjustl(output_dir))//"AGB"//year//".nc", agb_after)
-      
-      !-------------------------BGB --------------      
-      !call readgrid(trim(adjustl(input_dir))//"classification"//last_year//".nc", lu_before)
-      !call readgrid(trim(adjustl(input_dir))//"classification"//year//".nc", lu_after)
-      
       call readgrid(trim(adjustl(output_dir))//"BGB"//last_year//".nc", bgb_before)
-
-      call genEmissionBGB(emissionBGB, bgb_before, lu_after, lu_before, avgBGB)
-      
-      call writegrid(trim(adjustl(output_dir))//"emissionBGB"//year//".nc", emissionBGB)
-
-      call genBGB(emissionBGB, bgb_after, bgb_before, lu_after, lu_before, rtime)
-      
-
-      write(*,*) lu_after%ncdata(xx,yy), lu_before%ncdata(xx,yy), & 
-                 bgb_after%ncdata(xx,yy), bgb_before%ncdata(xx,yy), &
-                 emissionBGB%ncdata(xx,yy),pre_bgb%ncdata(xx,yy)
-
-      call writegrid(trim(adjustl(output_dir))//"BGB"//year//".nc", bgb_after)
-      
-      !-------------------------SOC --------------      
-      
       call readgrid(trim(adjustl(output_dir))//"SOC"//last_year//".nc", soc_before)
 
+      call genEmissionAGB(emissionAGB, agb_before, lu_after, lu_before, avgAGB)
+      call genEmissionBGB(emissionBGB, bgb_before, lu_after, lu_before, avgBGB)
       call genEmissionSOC(emissionSOC, soc_before, lu_after, lu_before, bgb_before, avgSOC)
       
-      call writegrid(trim(adjustl(output_dir))//"emissionSOC"//year//".nc", emissionSOC)
-
+      call genAGB(emissionAGB, agb_after, agb_before, lu_after, lu_before, rtime)
+      call genBGB(emissionBGB, bgb_after, bgb_before, lu_after, lu_before, rtime)
       call genSOC(emissionSOC, soc_after, soc_before, lu_after, lu_before)
       
-
-      write(*,*) lu_after%ncdata(xx,yy), lu_before%ncdata(xx,yy), & 
-                 soc_after%ncdata(xx,yy), soc_before%ncdata(xx,yy), &
-                 emissionSOC%ncdata(xx,yy),pre_soc%ncdata(xx,yy)
-
+      call writegrid(trim(adjustl(output_dir))//"AGB"//year//".nc", agb_after)
+      call writegrid(trim(adjustl(output_dir))//"BGB"//year//".nc", bgb_after)
       call writegrid(trim(adjustl(output_dir))//"SOC"//year//".nc", soc_after)
-!
-!      
+      
+      call writegrid(trim(adjustl(output_dir))//"emissionAGB"//year//".nc", emissionAGB)
+      call writegrid(trim(adjustl(output_dir))//"emissionBGB"//year//".nc", emissionBGB)
+      call writegrid(trim(adjustl(output_dir))//"emissionSOC"//year//".nc", emissionSOC)
+
       call dealloc(lu_before)
       call dealloc(lu_after)
-!      call dealloc(agb_after)
+      call dealloc(agb_after)
       call dealloc(agb_before)
       call dealloc(bgb_before)
       call dealloc(soc_before)
     end if
   end do
 
-  close(600)
 end program calcCarbon
 
