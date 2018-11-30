@@ -164,7 +164,7 @@ subroutine genSOC(emission, soc_after, soc_before, lu_after, lu_before, cropcoun
 
       disturb = 0.0
       if(cropCount(i,j).eq.4)then
-        if(withDisturb.eq."yes")then
+        if(trim(adjustl(withDisturb)).eq."yes")then
           disturb = 0.02
         end if
         cropCount(i,j) = 0
