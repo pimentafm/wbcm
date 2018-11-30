@@ -97,6 +97,9 @@ program calcCarbon
   call readgrid(trim(adjustl(input_dir))//"SOC.nc", pre_soc)
 
   call readgrid(trim(adjustl(input_dir))//"rtime.nc", rtime)
+
+  allocate(agrcont(pre_agb%nlons, pre_agb%lats))
+  agrcont = 0
   
   emissionAGB = pre_agb
   emissionBGB = pre_bgb
@@ -109,7 +112,10 @@ program calcCarbon
 
     if(k.eq.1990) then
       call readgrid(trim(adjustl(input_dir))//"classification"//year//".nc", lu_before)
-      
+
+      where(lu_before%ncdata.eq.5) agrcont = 1
+
+
       !AGB --------------      
       call genInitialAGB(agb_before, pre_agb, lu_before, avgAGB)
       call genInitialBGB(bgb_before, pre_bgb, lu_before, avgBGB)
