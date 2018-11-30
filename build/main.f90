@@ -42,8 +42,8 @@
 ! Contacts: fernando.m.pimenta@gmail.com, fernando.m.pimenta@ufv.br
 !           emilyy.ane@gmail.com
 !:=============================================================================
-
 !:=========================== Calc Carbon test ================================
+
 program calcCarbon
   use omp_lib
   use WBCM
@@ -98,9 +98,12 @@ program calcCarbon
 
   call readgrid(trim(adjustl(input_dir))//"rtime.nc", rtime)
 
-  allocate(agrcont(pre_agb%nlons, pre_agb%nlats))
-  agrcont = 0
-  
+  allocate(cropcount(pre_agb%nlons, pre_agb%nlats))
+
+  !Start disturbance crop count
+  cropcount = 0
+
+  !Matrix with soil disturbance count
   emissionAGB = pre_agb
   emissionBGB = pre_bgb
   emissionSOC = pre_soc
@@ -113,8 +116,7 @@ program calcCarbon
     if(k.eq.1990) then
       call readgrid(trim(adjustl(input_dir))//"classification"//year//".nc", lu_before)
 
-      where(lu_before%ncdata.eq.5) agrcont = 1
-
+      where(lu_before%ncdata.eq.5) cropcount = 1
 
       !AGB --------------      
       call genInitialAGB(agb_before, pre_agb, lu_before, avgAGB)
@@ -154,7 +156,7 @@ program calcCarbon
       
       call genAGB(emissionAGB, agb_after, agb_before, lu_after, lu_before, rtime)
       call genBGB(emissionBGB, bgb_after, bgb_before, lu_after, lu_before, rtime)
-      call genSOC(emissionSOC, soc_after, soc_before, lu_after, lu_before, agrcont)
+      call genSOC(emissionSOC, soc_after, soc_before, lu_after, lu_before, cropcount)
       
       call writegrid(trim(adjustl(output_dir))//"AGB"//year//".nc", agb_after)
       call writegrid(trim(adjustl(output_dir))//"BGB"//year//".nc", bgb_after)
@@ -174,4 +176,3 @@ program calcCarbon
   end do
 
 end program calcCarbon
-

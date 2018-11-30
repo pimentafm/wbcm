@@ -47,7 +47,7 @@
 #             netcdf-fortran
 #             netcdf-fortran-devel
 #             openmpi
-#             WBCM - Fortran Processing Library
+#             FPL - Fortran Processing Library
 #             lbs_release
 
 #Check OS

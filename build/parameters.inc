@@ -14,27 +14,21 @@ output_dir = "/home/fernando/Documents/workspace/wbcm/build/database/output/"
 !8 - Water bodies
 !9 - Urban areas/Rural builds
 
-!NPP - Net Primary Production
-!PRE - Percent of Roots Emission
-!ESL - Emission Soil Loss
-!Percentual Root Allocation
+!Calculates soil disturbance with (yes/no)?
+withDisturb = "yes"
 
+!Percentual root allocation
 avgAGB = (/36.69,26.36,6.57,5.49,7.04,8.50,1.28,0.00,0.00/)
 avgBGB = (/11.13,10.81,13.53,4.11,3.52,3.40,5.41,0.00,0.00/)
 avgSOC = (/79.46,67.10,67.10,62.40,57.45,78.06,51.69,0.00,0.00/)
 
+!NPP - Net Primary Production
+!PRE - Percent of Roots Emission
+!ESL - Emission Soil Loss
 NPP = 0.6 !NPP (kgCm-2year-1
 PRE = 0.7 !fraction
 ESL = 0.8 !fraction
 PRA = 0.2 !fraction
-
-
-
-
-
-
-
-
 
 !!!!!!
 ! Valores de biomassa

@@ -128,7 +128,7 @@ end subroutine genEmissionSOC
 
 
 !Calcula SOC atual
-subroutine genSOC(emission, soc_after, soc_before, lu_after, lu_before, agrcont)
+subroutine genSOC(emission, soc_after, soc_before, lu_after, lu_before, cropcount)
   ! calculates the below-ground biomass of the first year of 
   ! the land use series considering the biomass calculated before.
 
@@ -145,7 +145,7 @@ subroutine genSOC(emission, soc_after, soc_before, lu_after, lu_before, agrcont)
   type(nc2d_float_lld) :: soc_after, soc_before, emission
   type(nc2d_byte_lld) :: lu_after, lu_before
 
-  integer(kind=byte), dimension(:,:) :: agrcont 
+  integer(kind=byte), dimension(:,:) :: cropCount 
 
   integer(kind=4) :: i, j
   real(kind=float) :: disturb
@@ -157,17 +157,17 @@ subroutine genSOC(emission, soc_after, soc_before, lu_after, lu_before, agrcont)
     do j = 1, emission%nlats
 
       if(lu_after%ncdata(i,j).eq.5) then
-        agrcont(i,j) = agrcont(i,j) + 1
+        cropCount(i,j) = cropCount(i,j) + 1
       else
-        agrcont(i,j) = 0
+        cropCount(i,j) = 0
       end if
 
       disturb = 0.0
-      if(agrcont(i,j).eq.4)then
-        if(isDisturb.eq.1)then
+      if(cropCount(i,j).eq.4)then
+        if(withDisturb.eq."yes")then
           disturb = 0.02
         end if
-        agrcont(i,j) = 0
+        cropCount(i,j) = 0
       end if
 
       !Change: natural -> natural or  natural -> agriculture
@@ -175,7 +175,7 @@ subroutine genSOC(emission, soc_after, soc_before, lu_after, lu_before, agrcont)
         soc_after%ncdata(i,j) = soc_before%ncdata(i,j) - emission%ncdata(i,j)
       !Change: Agriculture -> agriculture
       else if(lu_before%ncdata(i,j).ge.4.and.lu_before%ncdata(i,j).lt.8.and. &
-              lu_after%ncdata(i,j).ge.4.and.lu_after%ncdata(i,j).lt.8) then
+        lu_after%ncdata(i,j).ge.4.and.lu_after%ncdata(i,j).lt.8) then
         soc_after%ncdata(i,j) = soc_before%ncdata(i,j) - emission%ncdata(i,j)  - disturb*soc_before%ncdata(i,j)
       !Change: Agriculture -> natural (vegetation regrowth)
       else if(lu_before%ncdata(i,j).ge.4.and.lu_before%ncdata(i,j).lt.8.and.lu_after%ncdata(i,j).le.3) then
