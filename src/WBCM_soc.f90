@@ -46,7 +46,7 @@
 !!!!!!!!!!!! Testing -------------------------
 !!!!!!!!!!!! ---------------------------------
 
-subroutine genInitialSOC(soc_before, pre_soc, lu_before, avgSOC)
+subroutine genInitialSOC(soc_before, pre_soc, lu_before)
   ! Calculate the below ground biomass for the first year of the landuse time serie
 
   !Variables
@@ -60,7 +60,6 @@ subroutine genInitialSOC(soc_before, pre_soc, lu_before, avgSOC)
   type(nc2d_float_lld) :: pre_soc, soc_before
   type(nc2d_byte_lld) :: lu_before
 
-  real(kind=4), dimension(9) :: avgSOC
   integer(kind=4) :: i, j
 
   soc_before = pre_soc
@@ -78,8 +77,10 @@ subroutine genInitialSOC(soc_before, pre_soc, lu_before, avgSOC)
         soc_before%ncdata(i,j) = avgSOC(6)
       else if(lu_before%ncdata(i,j).eq.7) then
         soc_before%ncdata(i,j) = avgSOC(7)
+      else if(lu_before%ncdata(i,j).eq.8.or.lu_before%ncdata(i,j).eq.9) then
+        soc_before%ncdata(i,j) = 0.0
       else
-        soc_before%ncdata(i,j) = 0.00
+        soc_before%ncdata(i,j) = -9999.0
       end if
     end do
     !$omp end parallel do
@@ -97,7 +98,7 @@ subroutine genInitialEmissionSOC(emission, pre_soc, soc_before, bgb_before)
     !$omp parallel do private(j)
     do j = 1, emission%nlats
      if(pre_soc%ncdata(i,j).ne.pre_soc%FillValue) then 
-       emission%ncdata(i,j) = (pre_soc%ncdata(i,j) - soc_before%ncdata(i,j)) + (1-PRE)*bgb_before%ncdata(i,j)
+       emission%ncdata(i,j) = (pre_soc%ncdata(i,j) - soc_before%ncdata(i,j)) + (1-PRE)*0.485*bgb_before%ncdata(i,j)
      end if
     end do
     !$omp end parallel do
@@ -105,25 +106,26 @@ subroutine genInitialEmissionSOC(emission, pre_soc, soc_before, bgb_before)
 end subroutine genInitialEmissionSOC
 
 !Calcula emissão atual
-subroutine genEmissionSOC(emission, soc_before, lu_after, lu_before, avgSOC)
+subroutine genEmissionSOC(emission, soc_before, lu_after, lu_before)
   !Add commentários
   integer(kind=4) :: i, j
   type(nc2d_float_lld) :: emission, soc_before
   type(nc2d_byte_lld) :: lu_after, lu_before
-  real(kind=4), dimension(9) :: avgSOC
   
   do i = 1, emission%nlons
     !$omp parallel do private(j)
     do j = 1, emission%nlats
       !No change
-      if(lu_before%ncdata(i,j).eq.lu_after%ncdata(i,j).and.emission%ncdata(i,j).ne.emission%FillValue) then
+      if(lu_before%ncdata(i,j).eq.lu_after%ncdata(i,j)) then
         emission%ncdata(i,j) = 0.0
       else
-        emission%ncdata(i,j) = soc_before%ncdata(i,j) - avgSOC(lu_after%ncdata(i,j))
+        emission%ncdata(i,j) = soc_before%ncdata(i,j) - avgSOC(lu_after%ncdata(i,j)) - (decayREC + decayRBGB + decayRS)
       end if
     end do
     !$omp end parallel do
   end do
+
+  where(soc_before%ncdata.eq.soc_before%FillValue) emission%ncdata = -9999.0
 end subroutine genEmissionSOC
 
 
@@ -145,10 +147,10 @@ subroutine genSOC(emission, soc_after, soc_before, agb_before, bgb_before, lu_af
   type(nc2d_float_lld) :: soc_after, soc_before, agb_before, bgb_before, emission
   type(nc2d_byte_lld) :: lu_after, lu_before
 
-  integer(kind=byte), dimension(:,:) :: cropCount 
+  integer(kind=4), dimension(:,:) :: cropCount 
 
   integer(kind=4) :: i, j
-  real(kind=float) :: disturb
+  real(kind=float) :: d
 
   soc_after = soc_before
 
@@ -162,27 +164,33 @@ subroutine genSOC(emission, soc_after, soc_before, agb_before, bgb_before, lu_af
         cropCount(i,j) = 0
       end if
 
-      disturb = 0.0
+      d = 0.0
 
       if(cropCount(i,j).eq.4)then
         if(trim(adjustl(withDisturb)).eq."yes")then
-          disturb = 0.02
+          d = disturb
         end if
         cropCount(i,j) = 0
       end if
 
-      !Change: natural -> natural or  natural -> agriculture
-      if(lu_before%ncdata(i,j).le.3.and.lu_after%ncdata(i,j).le.3.or.lu_before%ncdata(i,j).le.3.and.lu_after%ncdata(i,j).gt.3) then
-        soc_after%ncdata(i,j) = soc_before%ncdata(i,j) - emission%ncdata(i,j) + percSOILloss*agb_before%ncdata(i,j) - decayREC
+      !Change: natural -> natural
+      if(lu_before%ncdata(i,j).le.3.and.lu_after%ncdata(i,j).le.3) then
+        soc_after%ncdata(i,j) = soc_before%ncdata(i,j) - emission%ncdata(i,j) & 
+                                + (1-PRE)*bgb_before%ncdata(i,j)
+      !Change: natural -> agriculture
+      else if(lu_before%ncdata(i,j).le.3.and.lu_after%ncdata(i,j).ge.4.and.lu_after%ncdata(i,j).lt.8) then
+        soc_after%ncdata(i,j) = soc_before%ncdata(i,j) - emission%ncdata(i,j) & 
+                                + 0.485*(percSOILloss*agb_before%ncdata(i,j) + (1-PRE)*bgb_before%ncdata(i,j))
       !Change: Agriculture -> agriculture
       else if(lu_before%ncdata(i,j).ge.4.and.lu_before%ncdata(i,j).lt.8.and. &
               lu_after%ncdata(i,j).ge.4.and.lu_after%ncdata(i,j).lt.8) then
-        soc_after%ncdata(i,j) = soc_before%ncdata(i,j) - emission%ncdata(i,j) - disturb*soc_before%ncdata(i,j) &
-                                + percSOILloss*agb_before%ncdata(i,j) - decayREC
+        soc_after%ncdata(i,j) = soc_before%ncdata(i,j) - emission%ncdata(i,j) - d*soc_before%ncdata(i,j) &
+                                + 0.485*(percSOILloss*agb_before%ncdata(i,j) + (1-PRE)*bgb_before%ncdata(i,j))
       !Change: Agriculture -> natural (vegetation regrowth)
       else if(lu_before%ncdata(i,j).ge.4.and.lu_before%ncdata(i,j).lt.8.and.lu_after%ncdata(i,j).le.3) then
         !Please check NPP units in initial parameters
-        soc_after%ncdata(i,j) = soc_before%ncdata(i,j) - emission%ncdata(i,j) + (1-PRE)*bgb_before%ncdata(i,j) - decayREC
+        soc_after%ncdata(i,j) = soc_before%ncdata(i,j) - emission%ncdata(i,j) & 
+                                + 0.485*(percSOILloss*agb_before%ncdata(i,j) + (1-PRE)*bgb_before%ncdata(i,j))
       end if
     end do
     !$omp end parallel do

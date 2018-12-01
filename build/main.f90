@@ -119,16 +119,16 @@ program calcCarbon
       where(lu_before%ncdata.eq.5) cropcount = 1
 
       !AGB --------------      
-      call genInitialAGB(agb_before, pre_agb, lu_before, avgAGB)
-      call genInitialBGB(bgb_before, pre_bgb, lu_before, avgBGB)
-      call genInitialSOC(soc_before, pre_soc, lu_before, avgSOC)
+      call genInitialAGB(agb_before, pre_agb, lu_before)
+      call genInitialBGB(bgb_before, pre_bgb, lu_before)
+      call genInitialSOC(soc_before, pre_soc, lu_before)
       
       call genInitialEmissionAGB(emissionAGB, pre_agb, agb_before)
+      call writegrid(trim(adjustl(output_dir))//"AGB"//year//".nc", agb_before)
       call genInitialEmissionBGB(emissionBGB, pre_bgb, bgb_before)
+      call writegrid(trim(adjustl(output_dir))//"BGB"//year//".nc", bgb_before)
       call genInitialEmissionSOC(emissionSOC, pre_soc, soc_before, bgb_before)
 
-      call writegrid(trim(adjustl(output_dir))//"AGB"//year//".nc", agb_before)
-      call writegrid(trim(adjustl(output_dir))//"BGB"//year//".nc", bgb_before)
       call writegrid(trim(adjustl(output_dir))//"SOC"//year//".nc", soc_before)
       
       call writegrid(trim(adjustl(output_dir))//"emissionAGB"//year//".nc", emissionAGB)
@@ -150,21 +150,21 @@ program calcCarbon
       call readgrid(trim(adjustl(output_dir))//"BGB"//last_year//".nc", bgb_before)
       call readgrid(trim(adjustl(output_dir))//"SOC"//last_year//".nc", soc_before)
 
-      call genEmissionAGB(emissionAGB, agb_before, lu_after, lu_before, avgAGB)
-      call genEmissionBGB(emissionBGB, bgb_before, lu_after, lu_before, avgBGB)
-      call genEmissionSOC(emissionSOC, soc_before, lu_after, lu_before, avgSOC)
+      call genEmissionAGB(emissionAGB, agb_before, lu_after, lu_before)
+      call genEmissionBGB(emissionBGB, bgb_before, lu_after, lu_before)
+      call genEmissionSOC(emissionSOC, soc_before, lu_after, lu_before)
       
       call genAGB(emissionAGB, agb_after, agb_before, lu_after, lu_before, rtime)
       call genBGB(emissionBGB, bgb_after, bgb_before, lu_after, lu_before, rtime)
       call genSOC(emissionSOC, soc_after, soc_before, agb_before, bgb_before, lu_after, lu_before, cropcount)
       
-      call writegrid(trim(adjustl(output_dir))//"AGB"//year//".nc", agb_after)
-      call writegrid(trim(adjustl(output_dir))//"BGB"//year//".nc", bgb_after)
-      call writegrid(trim(adjustl(output_dir))//"SOC"//year//".nc", soc_after)
-      
       call writegrid(trim(adjustl(output_dir))//"emissionAGB"//year//".nc", emissionAGB)
       call writegrid(trim(adjustl(output_dir))//"emissionBGB"//year//".nc", emissionBGB)
       call writegrid(trim(adjustl(output_dir))//"emissionSOC"//year//".nc", emissionSOC)
+      
+      call writegrid(trim(adjustl(output_dir))//"AGB"//year//".nc", agb_after)
+      call writegrid(trim(adjustl(output_dir))//"BGB"//year//".nc", bgb_after)
+      call writegrid(trim(adjustl(output_dir))//"SOC"//year//".nc", soc_after)
 
       call dealloc(lu_before)
       call dealloc(lu_after)

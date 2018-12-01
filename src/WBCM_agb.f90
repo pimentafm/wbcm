@@ -43,28 +43,17 @@
 !           emilyy.ane@gmail.com
 !:=============================================================================
 
-!!!!!!!!!!!! Testing -------------------------
-!!!!!!!!!!!! ---------------------------------
+!String to int
+!elemental subroutine str2int(str,int,stat)
+!  ! Arguments
+!  character(len=*),intent(in) :: str
+!  integer,intent(out)         :: int
+!  integer,intent(out)         :: stat
+!
+!  read(str,*,iostat=stat)  int
+!end subroutine str2int
 
-subroutine test(num, radius)
-  integer, optional, intent(in):: num
-  real(kind=8), optional, intent(in):: radius
-
-  write(*,*) fpl_libversion()
-  write(*,*) "Earth Radius: ", radius, "A number: ", num
-
-end subroutine test
-
-elemental subroutine str2int(str,int,stat)
-  ! Arguments
-  character(len=*),intent(in) :: str
-  integer,intent(out)         :: int
-  integer,intent(out)         :: stat
-
-  read(str,*,iostat=stat)  int
-end subroutine str2int
-
-subroutine genInitialAGB(agb_before, pre_agb, lu_before, avgAGB)
+subroutine genInitialAGB(agb_before, pre_agb, lu_before)
   ! Calculate the above ground biomass for the first year of the landuse time serie
 
   !Variables
@@ -78,7 +67,6 @@ subroutine genInitialAGB(agb_before, pre_agb, lu_before, avgAGB)
   type(nc2d_float_lld) :: pre_agb, agb_before
   type(nc2d_byte_lld) :: lu_before
 
-  real(kind=4), dimension(9) :: avgAGB
   integer(kind=4) :: i, j
 
   agb_before = pre_agb
@@ -96,8 +84,10 @@ subroutine genInitialAGB(agb_before, pre_agb, lu_before, avgAGB)
         agb_before%ncdata(i,j) = avgAGB(6)
       else if(lu_before%ncdata(i,j).eq.7) then
         agb_before%ncdata(i,j) = avgAGB(7)
+      else if(lu_before%ncdata(i,j).eq.8.or.lu_before%ncdata(i,j).eq.9) then
+        agb_before%ncdata(i,j) = 0.0
       else
-        agb_before%ncdata(i,j) = 0.00
+        agb_before%ncdata(i,j) = -9999.0
       end if
     end do
     !$omp end parallel do
@@ -124,16 +114,15 @@ end subroutine genInitialEmissionAGB
 
 
 !Calcula emissão atual
-subroutine genEmissionAGB(emission, agb_before, lu_after, lu_before, avgAGB)
+subroutine genEmissionAGB(emission, agb_before, lu_after, lu_before)
   integer(kind=4) :: i, j
   type(nc2d_float_lld) :: emission, agb_before
   type(nc2d_byte_lld) :: lu_after, lu_before
-  real(kind=4), dimension(9) :: avgAGB
   
   do i = 1, emission%nlons
     !$omp parallel do private(j)
     do j = 1, emission%nlats
-      if(lu_before%ncdata(i,j).eq.lu_after%ncdata(i,j).and.emission%ncdata(i,j).ne.emission%FillValue) then
+      if(lu_before%ncdata(i,j).eq.lu_after%ncdata(i,j)) then
         emission%ncdata(i,j) = 0.0
       else
         emission%ncdata(i,j) = percATMloss*agb_before%ncdata(i,j) - avgAGB(lu_after%ncdata(i,j))
@@ -141,6 +130,8 @@ subroutine genEmissionAGB(emission, agb_before, lu_after, lu_before, avgAGB)
     end do
     !$omp end parallel do
   end do
+
+  where(agb_before%ncdata.eq.agb_before%FillValue) emission%ncdata = emission%FillValue
 end subroutine genEmissionAGB
 
 
@@ -169,8 +160,11 @@ subroutine genAGB(emission, agb_after, agb_before, lu_after, lu_before, rtime)
   do i = 1, emission%nlons
     !$omp parallel do private(j)
     do j = 1, emission%nlats
-      !Change: natural -> natural or  natural -> agriculture
-      if(lu_before%ncdata(i,j).le.3.and.lu_after%ncdata(i,j).le.3.or.lu_before%ncdata(i,j).le.3.and.lu_after%ncdata(i,j).gt.3) then
+      !Change: natural -> natural
+      if(lu_before%ncdata(i,j).le.3.and.lu_after%ncdata(i,j).le.3) then
+        agb_after%ncdata(i,j) = agb_before%ncdata(i,j) - emission%ncdata(i,j)
+      !Change: natural -> agriculture
+      else if(lu_before%ncdata(i,j).le.3.and.lu_after%ncdata(i,j).ge.4.and.lu_after%ncdata(i,j).lt.8) then
         agb_after%ncdata(i,j) = agb_before%ncdata(i,j) - emission%ncdata(i,j) - percSOILloss*agb_before%ncdata(i,j)
       !Change: Agriculture -> agriculture
       else if(lu_before%ncdata(i,j).ge.4.and.lu_before%ncdata(i,j).lt.8.and. &
@@ -180,12 +174,12 @@ subroutine genAGB(emission, agb_after, agb_before, lu_after, lu_before, rtime)
       else if(lu_before%ncdata(i,j).ge.4.and.lu_before%ncdata(i,j).lt.8.and.lu_after%ncdata(i,j).le.3) then
         !Please check NPP units in initial parameters
         agb_after%ncdata(i,j) = (10*NPP - (agb_before%ncdata(i,j)/rtime%ncdata(i,j))) &
-                                + agb_before%ncdata(i,j) - emission%ncdata(i,j)
+                                + agb_before%ncdata(i,j) - emission%ncdata(i,j) - percSOILloss*agb_before%ncdata(i,j)
       end if
     end do
     !$omp end parallel do
   end do
   
+  where(emission%ncdata.eq.emission%FillValue) agb_after%ncdata = emission%FillValue
   agb_before = agb_after
-
 end subroutine genAGB

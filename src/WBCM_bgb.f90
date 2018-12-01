@@ -43,10 +43,7 @@
 !           emilyy.ane@gmail.com
 !:=============================================================================
 
-!!!!!!!!!!!! Testing -------------------------
-!!!!!!!!!!!! ---------------------------------
-
-subroutine genInitialBGB(bgb_before, pre_bgb, lu_before, avgBGB)
+subroutine genInitialBGB(bgb_before, pre_bgb, lu_before)
   ! Calculate the below ground biomass for the first year of the landuse time serie
 
   !Variables
@@ -60,7 +57,6 @@ subroutine genInitialBGB(bgb_before, pre_bgb, lu_before, avgBGB)
   type(nc2d_float_lld) :: pre_bgb, bgb_before
   type(nc2d_byte_lld) :: lu_before
 
-  real(kind=4), dimension(9) :: avgBGB
   integer(kind=4) :: i, j
 
   bgb_before = pre_bgb
@@ -78,8 +74,10 @@ subroutine genInitialBGB(bgb_before, pre_bgb, lu_before, avgBGB)
         bgb_before%ncdata(i,j) = avgBGB(6)
       else if(lu_before%ncdata(i,j).eq.7) then
         bgb_before%ncdata(i,j) = avgBGB(7)
+      else if(lu_before%ncdata(i,j).eq.8.or.lu_before%ncdata(i,j).eq.9) then
+        bgb_before%ncdata(i,j) = 0.0
       else
-        bgb_before%ncdata(i,j) = 0.00
+        bgb_before%ncdata(i,j) = -9999.0
       end if
     end do
     !$omp end parallel do
@@ -105,18 +103,17 @@ subroutine genInitialEmissionBGB(emission, pre_bgb, bgb_before)
 end subroutine genInitialEmissionBGB
 
 !Calcula emissão atual
-subroutine genEmissionBGB(emission, bgb_before, lu_after, lu_before, avgBGB)
+subroutine genEmissionBGB(emission, bgb_before, lu_after, lu_before)
   !Add commentários
   integer(kind=4) :: i, j
   type(nc2d_float_lld) :: emission, bgb_before
   type(nc2d_byte_lld) :: lu_after, lu_before
-  real(kind=4), dimension(9) :: avgBGB
   
   do i = 1, emission%nlons
     !$omp parallel do private(j)
     do j = 1, emission%nlats
       !No change
-      if(lu_before%ncdata(i,j).eq.lu_after%ncdata(i,j).and.emission%ncdata(i,j).ne.emission%FillValue) then
+      if(lu_before%ncdata(i,j).eq.lu_after%ncdata(i,j)) then
         emission%ncdata(i,j) = 0.0
       else
         emission%ncdata(i,j) = PRE*bgb_before%ncdata(i,j) - avgBGB(lu_after%ncdata(i,j))
@@ -124,6 +121,8 @@ subroutine genEmissionBGB(emission, bgb_before, lu_after, lu_before, avgBGB)
     end do
     !$omp end parallel do
   end do
+
+  where(bgb_before%ncdata.eq.bgb_before%FillValue) emission%ncdata = -9999.0
 end subroutine genEmissionBGB
 
 
@@ -154,15 +153,16 @@ subroutine genBGB(emission, bgb_after, bgb_before, lu_after, lu_before, rtime)
     do j = 1, emission%nlats
       !Change: natural -> natural or  natural -> agriculture
       if(lu_before%ncdata(i,j).le.3.and.lu_after%ncdata(i,j).le.3.or.lu_before%ncdata(i,j).le.3.and.lu_after%ncdata(i,j).gt.3) then
-        bgb_after%ncdata(i,j) = bgb_before%ncdata(i,j) - emission%ncdata(i,j) - decayRBGB*bgb_before%ncdata(i,j)
+        bgb_after%ncdata(i,j) = bgb_before%ncdata(i,j) - emission%ncdata(i,j) - (1-PRE)*bgb_before%ncdata(i,j)
       !Change: Agriculture -> agriculture
       else if(lu_before%ncdata(i,j).ge.4.and.lu_before%ncdata(i,j).lt.8.and. &
               lu_after%ncdata(i,j).ge.4.and.lu_after%ncdata(i,j).lt.8) then
-        bgb_after%ncdata(i,j) = bgb_before%ncdata(i,j) - emission%ncdata(i,j) - decayRBGB*bgb_before%ncdata(i,j)
+        bgb_after%ncdata(i,j) = bgb_before%ncdata(i,j) - emission%ncdata(i,j) - (1-PRE)*bgb_before%ncdata(i,j)
       !Change: Agriculture -> natural (vegetation regrowth)
       else if(lu_before%ncdata(i,j).ge.4.and.lu_before%ncdata(i,j).lt.8.and.lu_after%ncdata(i,j).le.3) then
         !Please check NPP units in initial parameters
-        bgb_after%ncdata(i,j) = bgb_before%ncdata(i,j) + ((PRA*10*NPP) - (bgb_before%ncdata(i,j)/rtime%ncdata(i,j)))
+        bgb_after%ncdata(i,j) = bgb_before%ncdata(i,j) + ((PRA*10*NPP) & 
+                                - (bgb_before%ncdata(i,j)/rtime%ncdata(i,j))) - (1-PRE)*bgb_before%ncdata(i,j)
       end if
     end do
     !$omp end parallel do
