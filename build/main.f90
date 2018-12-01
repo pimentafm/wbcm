@@ -152,11 +152,11 @@ program calcCarbon
 
       call genEmissionAGB(emissionAGB, agb_before, lu_after, lu_before, avgAGB)
       call genEmissionBGB(emissionBGB, bgb_before, lu_after, lu_before, avgBGB)
-      call genEmissionSOC(emissionSOC, soc_before, lu_after, lu_before, bgb_before, avgSOC)
+      call genEmissionSOC(emissionSOC, soc_before, lu_after, lu_before, avgSOC)
       
       call genAGB(emissionAGB, agb_after, agb_before, lu_after, lu_before, rtime)
       call genBGB(emissionBGB, bgb_after, bgb_before, lu_after, lu_before, rtime)
-      call genSOC(emissionSOC, soc_after, soc_before, lu_after, lu_before, cropcount)
+      call genSOC(emissionSOC, soc_after, soc_before, agb_before, bgb_before, lu_after, lu_before, cropcount)
       
       call writegrid(trim(adjustl(output_dir))//"AGB"//year//".nc", agb_after)
       call writegrid(trim(adjustl(output_dir))//"BGB"//year//".nc", bgb_after)

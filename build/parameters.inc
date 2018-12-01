@@ -15,7 +15,7 @@ output_dir = "/home/fernando/Documents/workspace/wbcm/build/database/output/"
 !9 - Urban areas/Rural builds
 
 !Calculates soil disturbance with (yes/no)?
-withDisturb = "yes"
+withDisturb = "no"
 
 !Percentual root allocation
 avgAGB = (/36.69,26.36,6.57,5.49,7.04,8.50,1.28,0.00,0.00/)
@@ -29,6 +29,20 @@ NPP = 0.6 !NPP (kgCm-2year-1
 PRE = 0.7 !fraction
 ESL = 0.8 !fraction
 PRA = 0.2 !fraction
+
+!%AGB loss to atmosphere
+percATMloss = 0.575
+percSOILloss = 0.425 
+
+!Decay rate of elemental carbon
+decayREC = 0.001
+
+!Decay rate of slash
+decayRS = 0.00
+
+!Decay rate of Bellowground biomass
+decayRBGB = 0.70
+
 
 !!!!!!
 ! Valores de biomassa

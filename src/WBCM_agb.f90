@@ -136,7 +136,7 @@ subroutine genEmissionAGB(emission, agb_before, lu_after, lu_before, avgAGB)
       if(lu_before%ncdata(i,j).eq.lu_after%ncdata(i,j).and.emission%ncdata(i,j).ne.emission%FillValue) then
         emission%ncdata(i,j) = 0.0
       else
-        emission%ncdata(i,j) = agb_before%ncdata(i,j) - avgAGB(lu_after%ncdata(i,j))
+        emission%ncdata(i,j) = percATMloss*agb_before%ncdata(i,j) - avgAGB(lu_after%ncdata(i,j))
       end if
     end do
     !$omp end parallel do
@@ -171,15 +171,16 @@ subroutine genAGB(emission, agb_after, agb_before, lu_after, lu_before, rtime)
     do j = 1, emission%nlats
       !Change: natural -> natural or  natural -> agriculture
       if(lu_before%ncdata(i,j).le.3.and.lu_after%ncdata(i,j).le.3.or.lu_before%ncdata(i,j).le.3.and.lu_after%ncdata(i,j).gt.3) then
-        agb_after%ncdata(i,j) = agb_before%ncdata(i,j) - emission%ncdata(i,j)
+        agb_after%ncdata(i,j) = agb_before%ncdata(i,j) - emission%ncdata(i,j) - percSOILloss*agb_before%ncdata(i,j)
       !Change: Agriculture -> agriculture
       else if(lu_before%ncdata(i,j).ge.4.and.lu_before%ncdata(i,j).lt.8.and. &
               lu_after%ncdata(i,j).ge.4.and.lu_after%ncdata(i,j).lt.8) then
-        agb_after%ncdata(i,j) = agb_before%ncdata(i,j) - emission%ncdata(i,j)
+        agb_after%ncdata(i,j) = agb_before%ncdata(i,j) - emission%ncdata(i,j) - percSOILloss*agb_before%ncdata(i,j)
       !Change: Agriculture -> natural (vegetation regrowth)
       else if(lu_before%ncdata(i,j).ge.4.and.lu_before%ncdata(i,j).lt.8.and.lu_after%ncdata(i,j).le.3) then
         !Please check NPP units in initial parameters
-        agb_after%ncdata(i,j) = (10*NPP - (agb_before%ncdata(i,j)/rtime%ncdata(i,j))) + agb_before%ncdata(i,j)
+        agb_after%ncdata(i,j) = (10*NPP - (agb_before%ncdata(i,j)/rtime%ncdata(i,j))) &
+                                + agb_before%ncdata(i,j) - emission%ncdata(i,j)
       end if
     end do
     !$omp end parallel do
