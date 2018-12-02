@@ -1,4 +1,7 @@
 ! Initial parameters
+!Input and output datasets
+
+!The Aboveground and Belowground biomass in the past (t C ha-1)
 input_dir = "/home/fernando/Documents/workspace/wbcm/build/database/input/"
 output_dir = "/home/fernando/Documents/workspace/wbcm/build/database/output/"
 
@@ -18,8 +21,11 @@ withDisturb = "no"
 !Agriculture disturbance rate
 disturb = 0.02
 
+!ton ha-1
 avgAGB = (/36.69,26.36,6.57,5.49,7.04,8.50,1.28,0.00,0.00/)
 avgBGB = (/11.13,10.81,13.53,4.11,3.52,3.40,5.41,0.00,0.00/)
+
+!ton C ha-1
 avgSOC = (/79.46,67.10,67.10,62.40,57.45,78.06,51.69,0.00,0.00/)
 
 !NPP - Net Primary Production

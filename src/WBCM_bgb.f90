@@ -151,8 +151,12 @@ subroutine genBGB(emission, bgb_after, bgb_before, lu_after, lu_before, rtime)
   do i = 1, emission%nlons
     !$omp parallel do private(j)
     do j = 1, emission%nlats
-      !Change: natural -> natural or  natural -> agriculture
-      if(lu_before%ncdata(i,j).le.3.and.lu_after%ncdata(i,j).le.3.or.lu_before%ncdata(i,j).le.3.and.lu_after%ncdata(i,j).gt.3) then
+      !Change: natural -> natural
+      if(lu_before%ncdata(i,j).le.3.and.lu_after%ncdata(i,j).le.3) then
+        bgb_after%ncdata(i,j) = bgb_before%ncdata(i,j) - emission%ncdata(i,j)
+      !Change: natural -> agriculture
+      else if(lu_before%ncdata(i,j).le.3.and.lu_after%ncdata(i,j).gt.3.and. &
+         lu_after%ncdata(i,j).ge.4.and.lu_after%ncdata(i,j).lt.8) then
         bgb_after%ncdata(i,j) = bgb_before%ncdata(i,j) - emission%ncdata(i,j) - (1-PRE)*bgb_before%ncdata(i,j)
       !Change: Agriculture -> agriculture
       else if(lu_before%ncdata(i,j).ge.4.and.lu_before%ncdata(i,j).lt.8.and. &
@@ -168,6 +172,7 @@ subroutine genBGB(emission, bgb_after, bgb_before, lu_after, lu_before, rtime)
     !$omp end parallel do
   end do
   
+  where(emission%ncdata.eq.emission%FillValue) bgb_after%ncdata = emission%FillValue
   bgb_before = bgb_after
 
 end subroutine genBGB

@@ -176,7 +176,7 @@ subroutine genSOC(emission, soc_after, soc_before, agb_before, bgb_before, lu_af
       !Change: natural -> natural
       if(lu_before%ncdata(i,j).le.3.and.lu_after%ncdata(i,j).le.3) then
         soc_after%ncdata(i,j) = soc_before%ncdata(i,j) - emission%ncdata(i,j) & 
-                                + (1-PRE)*bgb_before%ncdata(i,j)
+                                + 0.485*(1-PRE)*bgb_before%ncdata(i,j)
       !Change: natural -> agriculture
       else if(lu_before%ncdata(i,j).le.3.and.lu_after%ncdata(i,j).ge.4.and.lu_after%ncdata(i,j).lt.8) then
         soc_after%ncdata(i,j) = soc_before%ncdata(i,j) - emission%ncdata(i,j) & 
@@ -196,6 +196,7 @@ subroutine genSOC(emission, soc_after, soc_before, agb_before, bgb_before, lu_af
     !$omp end parallel do
   end do
   
+  where(emission%ncdata.eq.emission%FillValue) soc_after%ncdata = emission%FillValue
   soc_before = soc_after
 
 end subroutine genSOC
