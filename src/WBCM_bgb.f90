@@ -83,51 +83,12 @@ subroutine genInitialBGB(bgb_before, pre_bgb, lu_before)
     !$omp end parallel do
   end do
 
-  bgb_before%varunits = 't C ha-1'
+  bgb_before%varunits = 't ha-1'
+
 end subroutine genInitialBGB
 
-subroutine genInitialEmissionBGB(emission, pre_bgb, bgb_before)
-  ! Add comentários
-  integer(kind=4) :: i, j
-  type(nc2d_float_lld) :: emission, pre_bgb, bgb_before
-  
-  do i = 1, emission%nlons
-    !$omp parallel do private(j)
-    do j = 1, emission%nlats
-     if(pre_bgb%ncdata(i,j).ne.pre_bgb%FillValue) then 
-       emission%ncdata(i,j) = PRE*pre_bgb%ncdata(i,j) - bgb_before%ncdata(i,j)
-     end if
-    end do
-    !$omp end parallel do
-  end do
-end subroutine genInitialEmissionBGB
-
-!Calcula emissão atual
-subroutine genEmissionBGB(emission, bgb_before, lu_after, lu_before)
-  !Add commentários
-  integer(kind=4) :: i, j
-  type(nc2d_float_lld) :: emission, bgb_before
-  type(nc2d_byte_lld) :: lu_after, lu_before
-  
-  do i = 1, emission%nlons
-    !$omp parallel do private(j)
-    do j = 1, emission%nlats
-      !No change
-      if(lu_before%ncdata(i,j).eq.lu_after%ncdata(i,j)) then
-        emission%ncdata(i,j) = 0.0
-      else
-        emission%ncdata(i,j) = PRE*bgb_before%ncdata(i,j) - avgBGB(lu_after%ncdata(i,j))
-      end if
-    end do
-    !$omp end parallel do
-  end do
-
-  where(bgb_before%ncdata.eq.bgb_before%FillValue) emission%ncdata = -9999.0
-end subroutine genEmissionBGB
-
-
 !Calcula BGB atual
-subroutine genBGB(emission, bgb_after, bgb_before, lu_after, lu_before, rtime)
+subroutine genBGB(bgb_after, bgb_before, lu_after, lu_before)
   ! calculates the below-ground biomass of the first year of 
   ! the land use series considering the biomass calculated before.
 
@@ -135,34 +96,48 @@ subroutine genBGB(emission, bgb_after, bgb_before, lu_after, lu_before, rtime)
     ! pre_before: below ground biomass of a year before
     ! lu_after: landuse classification of the next year
     ! lu_before: landuse classification of the year before
-    ! rtime: redidence time of the landuse classes
     ! avgbgb: average below ground biomass of the classification dataset
     
     !output
      ! bgb_after: below ground biomass of next year
 
-  type(nc2d_float_lld) :: bgb_after, bgb_before, rtime, emission
+  type(nc2d_float_lld) :: bgb_after, bgb_before
   type(nc2d_byte_lld) :: lu_after, lu_before
 
   integer(kind=4) :: i, j
 
   bgb_after = bgb_before
 
-  do i = 1, emission%nlons
+  where(lu_after%ncdata.eq.lu_before%ncdata) bgb_after%ncdata = 0.0
+
+  do i = 1, bgb_before%nlons
     !$omp parallel do private(j)
-    do j = 1, emission%nlats
-      !Change: natural -> natural or  natural -> agriculture
-      if(lu_before%ncdata(i,j).le.3.and.lu_after%ncdata(i,j).le.3.or.lu_before%ncdata(i,j).le.3.and.lu_after%ncdata(i,j).gt.3) then
-        bgb_after%ncdata(i,j) = bgb_before%ncdata(i,j) - emission%ncdata(i,j) - (1-PRE)*bgb_before%ncdata(i,j)
-      !Change: Agriculture -> agriculture
+    do j = 1, bgb_before%nlats
+    !Change: natural -> natural
+      !Forest -> Savanna, grasslands
+      if(lu_before%ncdata(i,j).eq.1.and.lu_after%ncdata(i,j).ge.2.and.lu_after%ncdata(i,j).le.3) then
+        bgb_after%ncdata(i,j) = avgBGB(lu_after%ncdata(i,j)) - bgb_before%ncdata(i,j)
+      !Savanna -> grasslands
+      else if(lu_before%ncdata(i,j).eq.2.and.lu_after%ncdata(i,j).eq.3) then
+        bgb_after%ncdata(i,j) = avgBGB(lu_after%ncdata(i,j)) - bgb_before%ncdata(i,j)
+      !Savanna -> forest
+      else if(lu_before%ncdata(i,j).eq.2.and.lu_after%ncdata(i,j).eq.1) then
+        bgb_after%ncdata(i,j) = (avgBGB(lu_after%ncdata(i,j)) - bgb_before%ncdata(i,j)) + 0.485*cbGrow(lu_after%ncdata(i,j))
+      !Grasslands -> forest, savanna 
+      else if(lu_before%ncdata(i,j).eq.3.and.lu_after%ncdata(i,j).eq.1.or.lu_after%ncdata(i,j).eq.2) then
+        bgb_after%ncdata(i,j) = (avgBGB(lu_after%ncdata(i,j)) - bgb_before%ncdata(i,j)) + 0.485*cbGrow(lu_after%ncdata(i,j))
+    !Change: natural -> crop
+      else if(lu_before%ncdata(i,j).le.3.and.lu_after%ncdata(i,j).ge.4.and.lu_after%ncdata(i,j).lt.8) then
+        !Não usa taxa de crescimento anual. Foi considerada nula porque o incremento é igual a perda anual
+        bgb_after%ncdata(i,j) = avgBGB(lu_after%ncdata(i,j)) - bgb_before%ncdata(i,j)
+      !Change: Crop -> crop
       else if(lu_before%ncdata(i,j).ge.4.and.lu_before%ncdata(i,j).lt.8.and. &
               lu_after%ncdata(i,j).ge.4.and.lu_after%ncdata(i,j).lt.8) then
-        bgb_after%ncdata(i,j) = bgb_before%ncdata(i,j) - emission%ncdata(i,j) - (1-PRE)*bgb_before%ncdata(i,j)
-      !Change: Agriculture -> natural (vegetation regrowth)
+        bgb_after%ncdata(i,j) = avgBGB(lu_after%ncdata(i,j)) - bgb_before%ncdata(i,j)
+      !Change: Crop -> natural (vegetation regrowth)
       else if(lu_before%ncdata(i,j).ge.4.and.lu_before%ncdata(i,j).lt.8.and.lu_after%ncdata(i,j).le.3) then
         !Please check NPP units in initial parameters
-        bgb_after%ncdata(i,j) = bgb_before%ncdata(i,j) + ((PRA*10*NPP) & 
-                                - (bgb_before%ncdata(i,j)/rtime%ncdata(i,j))) - (1-PRE)*bgb_before%ncdata(i,j)
+        bgb_after%ncdata(i,j) = avgBGB(lu_after%ncdata(i,j)) - bgb_before%ncdata(i,j)
       end if
     end do
     !$omp end parallel do

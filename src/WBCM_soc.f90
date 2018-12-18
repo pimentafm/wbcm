@@ -89,48 +89,8 @@ subroutine genInitialSOC(soc_before, pre_soc, lu_before)
   soc_before%varunits = 't C ha-1'
 end subroutine genInitialSOC
 
-subroutine genInitialEmissionSOC(emission, pre_soc, soc_before, bgb_before)
-  ! Add comentários
-  integer(kind=4) :: i, j
-  type(nc2d_float_lld) :: emission, pre_soc, soc_before, bgb_before
-  
-  do i = 1, emission%nlons
-    !$omp parallel do private(j)
-    do j = 1, emission%nlats
-     if(pre_soc%ncdata(i,j).ne.pre_soc%FillValue) then 
-       emission%ncdata(i,j) = (pre_soc%ncdata(i,j) - soc_before%ncdata(i,j)) + (1-PRE)*0.485*bgb_before%ncdata(i,j)
-     end if
-    end do
-    !$omp end parallel do
-  end do
-end subroutine genInitialEmissionSOC
-
-!Calcula emissão atual
-subroutine genEmissionSOC(emission, soc_before, lu_after, lu_before)
-  !Add commentários
-  integer(kind=4) :: i, j
-  type(nc2d_float_lld) :: emission, soc_before
-  type(nc2d_byte_lld) :: lu_after, lu_before
-  
-  do i = 1, emission%nlons
-    !$omp parallel do private(j)
-    do j = 1, emission%nlats
-      !No change
-      if(lu_before%ncdata(i,j).eq.lu_after%ncdata(i,j)) then
-        emission%ncdata(i,j) = 0.0
-      else
-        emission%ncdata(i,j) = soc_before%ncdata(i,j) - avgSOC(lu_after%ncdata(i,j)) - (decayREC + decayRBGB + decayRS)
-      end if
-    end do
-    !$omp end parallel do
-  end do
-
-  where(soc_before%ncdata.eq.soc_before%FillValue) emission%ncdata = -9999.0
-end subroutine genEmissionSOC
-
-
 !Calcula SOC atual
-subroutine genSOC(emission, soc_after, soc_before, agb_before, bgb_before, lu_after, lu_before, cropcount)
+subroutine genSOC(soc_after, soc_before, lu_after, lu_before)
   ! calculates the below-ground biomass of the first year of 
   ! the land use series considering the biomass calculated before.
 
@@ -138,59 +98,48 @@ subroutine genSOC(emission, soc_after, soc_before, agb_before, bgb_before, lu_af
     ! soc_before: soil organic carbon stock of a year before
     ! lu_after: landuse classification of the next year
     ! lu_before: landuse classification of the year before
-    ! rtime: redidence time of the landuse classes
     ! avgsoc: average of soil organic carbon stock of the classification dataset
     
     !output
      ! soc_after: soil organic carbon stock of next year
 
-  type(nc2d_float_lld) :: soc_after, soc_before, agb_before, bgb_before, emission
+  type(nc2d_float_lld) :: soc_after, soc_before
   type(nc2d_byte_lld) :: lu_after, lu_before
 
-  integer(kind=4), dimension(:,:) :: cropCount 
-
   integer(kind=4) :: i, j
-  real(kind=float) :: d
 
   soc_after = soc_before
 
-  do i = 1, emission%nlons
+  where(lu_after%ncdata.eq.lu_before%ncdata) soc_after%ncdata = 0.0
+  
+  do i = 1, soc_before%nlons
     !$omp parallel do private(j)
-    do j = 1, emission%nlats
-
-      if(lu_after%ncdata(i,j).eq.5) then
-        cropCount(i,j) = cropCount(i,j) + 1
-      else
-        cropCount(i,j) = 0
-      end if
-
-      d = 0.0
-
-      if(cropCount(i,j).eq.4)then
-        if(trim(adjustl(withDisturb)).eq."yes")then
-          d = disturb
-        end if
-        cropCount(i,j) = 0
-      end if
-
-      !Change: natural -> natural
-      if(lu_before%ncdata(i,j).le.3.and.lu_after%ncdata(i,j).le.3) then
-        soc_after%ncdata(i,j) = soc_before%ncdata(i,j) - emission%ncdata(i,j) & 
-                                + (1-PRE)*bgb_before%ncdata(i,j)
-      !Change: natural -> agriculture
+    do j = 1, soc_before%nlats
+    !Change: natural -> natural
+      !Forest -> Savanna, grasslands
+      if(lu_before%ncdata(i,j).eq.1.and.lu_after%ncdata(i,j).ge.2.and.lu_after%ncdata(i,j).le.3) then
+        soc_after%ncdata(i,j) = avgSOC(lu_after%ncdata(i,j)) - soc_before%ncdata(i,j)
+      !Savanna -> grasslands
+      else if (lu_before%ncdata(i,j).eq.2.and.lu_after%ncdata(i,j).eq.3) then
+        soc_after%ncdata(i,j) = avgSOC(lu_after%ncdata(i,j)) - soc_before%ncdata(i,j)
+      !Savanna -> forest
+      else if(lu_before%ncdata(i,j).eq.2.and.lu_after%ncdata(i,j).eq.1) then
+        soc_after%ncdata(i,j) = (avgSOC(lu_after%ncdata(i,j)) - soc_before%ncdata(i,j))
+      !Grasslands -> forest, savanna 
+      else if(lu_before%ncdata(i,j).eq.3.and.lu_after%ncdata(i,j).eq.1.or.lu_after%ncdata(i,j).eq.2) then
+        soc_after%ncdata(i,j) = (avgSOC(lu_after%ncdata(i,j)) - soc_before%ncdata(i,j))
+    !Change: natural -> crop
       else if(lu_before%ncdata(i,j).le.3.and.lu_after%ncdata(i,j).ge.4.and.lu_after%ncdata(i,j).lt.8) then
-        soc_after%ncdata(i,j) = soc_before%ncdata(i,j) - emission%ncdata(i,j) & 
-                                + 0.485*(percSOILloss*agb_before%ncdata(i,j) + (1-PRE)*bgb_before%ncdata(i,j))
-      !Change: Agriculture -> agriculture
+        !Não usa taxa de crescimento anual. Foi considerada nula porque o incremento é igual a perda anual
+        soc_after%ncdata(i,j) = avgSOC(lu_after%ncdata(i,j)) - soc_before%ncdata(i,j)
+      !Change: Crop -> crop
       else if(lu_before%ncdata(i,j).ge.4.and.lu_before%ncdata(i,j).lt.8.and. &
               lu_after%ncdata(i,j).ge.4.and.lu_after%ncdata(i,j).lt.8) then
-        soc_after%ncdata(i,j) = soc_before%ncdata(i,j) - emission%ncdata(i,j) - d*soc_before%ncdata(i,j) &
-                                + 0.485*(percSOILloss*agb_before%ncdata(i,j) + (1-PRE)*bgb_before%ncdata(i,j))
-      !Change: Agriculture -> natural (vegetation regrowth)
+        soc_after%ncdata(i,j) = avgSOC(lu_after%ncdata(i,j)) - soc_before%ncdata(i,j)
+      !Change: Crop -> natural (vegetation regrowth)
       else if(lu_before%ncdata(i,j).ge.4.and.lu_before%ncdata(i,j).lt.8.and.lu_after%ncdata(i,j).le.3) then
         !Please check NPP units in initial parameters
-        soc_after%ncdata(i,j) = soc_before%ncdata(i,j) - emission%ncdata(i,j) & 
-                                + 0.485*(percSOILloss*agb_before%ncdata(i,j) + (1-PRE)*bgb_before%ncdata(i,j))
+        soc_after%ncdata(i,j) = avgSOC(lu_after%ncdata(i,j)) - soc_before%ncdata(i,j)
       end if
     end do
     !$omp end parallel do

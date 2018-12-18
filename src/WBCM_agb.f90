@@ -93,50 +93,12 @@ subroutine genInitialAGB(agb_before, pre_agb, lu_before)
     !$omp end parallel do
   end do
 
-  agb_before%varunits = 't C ha-1'
+  agb_before%varunits = 't ha-1'
 
 end subroutine genInitialAGB
 
-subroutine genInitialEmissionAGB(emission, pre_agb, agb_before)
-  integer(kind=4) :: i, j
-  type(nc2d_float_lld) :: emission, pre_agb, agb_before
-  
-  do i = 1, emission%nlons
-    !$omp parallel do private(j)
-    do j = 1, emission%nlats
-     if(pre_agb%ncdata(i,j).ne.pre_agb%FillValue) then 
-       emission%ncdata(i,j) = pre_agb%ncdata(i,j) - agb_before%ncdata(i,j)
-     end if
-    end do
-    !$omp end parallel do
-  end do
-end subroutine genInitialEmissionAGB
-
-
-!Calcula emissão atual
-subroutine genEmissionAGB(emission, agb_before, lu_after, lu_before)
-  integer(kind=4) :: i, j
-  type(nc2d_float_lld) :: emission, agb_before
-  type(nc2d_byte_lld) :: lu_after, lu_before
-  
-  do i = 1, emission%nlons
-    !$omp parallel do private(j)
-    do j = 1, emission%nlats
-      if(lu_before%ncdata(i,j).eq.lu_after%ncdata(i,j)) then
-        emission%ncdata(i,j) = 0.0
-      else
-        emission%ncdata(i,j) = percATMloss*agb_before%ncdata(i,j) - avgAGB(lu_after%ncdata(i,j))
-      end if
-    end do
-    !$omp end parallel do
-  end do
-
-  where(agb_before%ncdata.eq.agb_before%FillValue) emission%ncdata = emission%FillValue
-end subroutine genEmissionAGB
-
-
 !Calcula AGB atual
-subroutine genAGB(emission, agb_after, agb_before, lu_after, lu_before, rtime)
+subroutine genAGB(agb_after, agb_before, lu_after, lu_before)
   ! calculates the above-ground biomass of the first year of 
   ! the land use series considering the biomass calculated before.
 
@@ -144,42 +106,52 @@ subroutine genAGB(emission, agb_after, agb_before, lu_after, lu_before, rtime)
     ! pre_before: above ground biomass of a year before
     ! lu_after: landuse classification of the next year
     ! lu_before: landuse classification of the year before
-    ! rtime: redidence time of the landuse classes
     ! avgagb: average above ground biomass of the classification dataset
     
     !output
      ! agb_after: above ground biomass of next year
 
-  type(nc2d_float_lld) :: agb_after, agb_before, rtime, emission
+  type(nc2d_float_lld) :: agb_after, agb_before
   type(nc2d_byte_lld) :: lu_after, lu_before
 
   integer(kind=4) :: i, j
 
   agb_after = agb_before
 
-  do i = 1, emission%nlons
+  where(lu_after%ncdata.eq.lu_before%ncdata) agb_after%ncdata = 0.0
+
+  do i = 1, agb_before%nlons
     !$omp parallel do private(j)
-    do j = 1, emission%nlats
-      !Change: natural -> natural
-      if(lu_before%ncdata(i,j).le.3.and.lu_after%ncdata(i,j).le.3) then
-        agb_after%ncdata(i,j) = agb_before%ncdata(i,j) - emission%ncdata(i,j)
-      !Change: natural -> agriculture
+    do j = 1, agb_before%nlats
+    !Change: natural -> natural
+      !Forest -> Savanna, grasslands
+      if(lu_before%ncdata(i,j).eq.1.and.lu_after%ncdata(i,j).ge.2.and.lu_after%ncdata(i,j).le.3) then
+        agb_after%ncdata(i,j) = avgAGB(lu_after%ncdata(i,j)) - agb_before%ncdata(i,j)
+      !Savanna -> grasslands
+      else if(lu_before%ncdata(i,j).eq.2.and.lu_after%ncdata(i,j).eq.3) then
+        agb_after%ncdata(i,j) = avgAGB(lu_after%ncdata(i,j)) - agb_before%ncdata(i,j)
+      !Savanna -> forest
+      else if(lu_before%ncdata(i,j).eq.2.and.lu_after%ncdata(i,j).eq.1) then
+        agb_after%ncdata(i,j) = (avgAGB(lu_after%ncdata(i,j)) - agb_before%ncdata(i,j)) + 0.485*cGrow(lu_after%ncdata(i,j))
+      !Grasslands -> forest, savanna 
+      else if(lu_before%ncdata(i,j).eq.3.and.lu_after%ncdata(i,j).eq.1.or.lu_after%ncdata(i,j).eq.2) then
+        agb_after%ncdata(i,j) = (avgAGB(lu_after%ncdata(i,j)) - agb_before%ncdata(i,j)) + 0.485*cGrow(lu_after%ncdata(i,j))
+    !Change: natural -> crop
       else if(lu_before%ncdata(i,j).le.3.and.lu_after%ncdata(i,j).ge.4.and.lu_after%ncdata(i,j).lt.8) then
-        agb_after%ncdata(i,j) = agb_before%ncdata(i,j) - emission%ncdata(i,j) - percSOILloss*agb_before%ncdata(i,j)
-      !Change: Agriculture -> agriculture
+        !Não usa taxa de crescimento anual. Foi considerada nula porque o incremento é igual a perda anual
+        agb_after%ncdata(i,j) = avgAGB(lu_after%ncdata(i,j)) - agb_before%ncdata(i,j)
+      !Change: Crop -> crop
       else if(lu_before%ncdata(i,j).ge.4.and.lu_before%ncdata(i,j).lt.8.and. &
               lu_after%ncdata(i,j).ge.4.and.lu_after%ncdata(i,j).lt.8) then
-        agb_after%ncdata(i,j) = agb_before%ncdata(i,j) - emission%ncdata(i,j) - percSOILloss*agb_before%ncdata(i,j)
-      !Change: Agriculture -> natural (vegetation regrowth)
+        agb_after%ncdata(i,j) = avgAGB(lu_after%ncdata(i,j)) - agb_before%ncdata(i,j)
+      !Change: Crop -> natural (vegetation regrowth)
       else if(lu_before%ncdata(i,j).ge.4.and.lu_before%ncdata(i,j).lt.8.and.lu_after%ncdata(i,j).le.3) then
         !Please check NPP units in initial parameters
-        agb_after%ncdata(i,j) = (10*NPP - (agb_before%ncdata(i,j)/rtime%ncdata(i,j))) &
-                                + agb_before%ncdata(i,j) - emission%ncdata(i,j) - percSOILloss*agb_before%ncdata(i,j)
+        agb_after%ncdata(i,j) = avgAGB(lu_after%ncdata(i,j)) - agb_before%ncdata(i,j)
       end if
     end do
     !$omp end parallel do
   end do
   
-  where(emission%ncdata.eq.emission%FillValue) agb_after%ncdata = emission%FillValue
   agb_before = agb_after
 end subroutine genAGB
