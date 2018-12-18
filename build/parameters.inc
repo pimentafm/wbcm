@@ -16,7 +16,7 @@ output_dir = "/home/fernando/Documents/workspace/wbcm/build/database/output/"
 !9 - Urban areas/Farm buildings
 
 !Calculates soil disturbance with (yes/no)?
-withDisturb = "no"
+withDisturb = "yes"
 
 !Agriculture disturbance rate
 disturb = 0.02
