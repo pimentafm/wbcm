@@ -55,7 +55,7 @@ program calcCarbon
   !lu_before: Landuse classes in the last year (class number)
   !lu_after: Landuse classes in the present year (class number)
   !pre_biomass: Above ground biomass in the past (anisomorphy) (t ha-1)
-  type(nc2d_float_lld) :: pre_agb, pre_bgb, pre_soc, agb_before, agb_after, &
+  type(nc2d_float_lld) :: agb_before, agb_after, &
                           bgb_before, bgb_after, soc_before, soc_after
 
   type(nc2d_byte_lld) :: lu_before, lu_after
@@ -75,69 +75,61 @@ program calcCarbon
   lu_after%lonname = "lon"
   lu_after%latname = "lat"
   
-  pre_agb%varname = "AGB"
-  pre_agb%lonname = "lon"
-  pre_agb%latname = "lat"
-  
-  pre_bgb%varname = "BGB"
-  pre_bgb%lonname = "lon"
-  pre_bgb%latname = "lat"
-  
-  pre_soc%varname = "SOC"
-  pre_soc%lonname = "lon"
-  pre_soc%latname = "lat"
-  
-  call readgrid(trim(adjustl(input_dir))//"AGB.nc", pre_agb)
-  call readgrid(trim(adjustl(input_dir))//"BGB.nc", pre_bgb)
-  call readgrid(trim(adjustl(input_dir))//"pre_SOC_MC_total.nc", pre_soc)
 
-  do k = 1990, 2018
+  agb_before%varname = "AGB"
+  agb_before%lonname = "lon"
+  agb_before%latname = "lat"
+
+  agb_after%varname = "AGB"
+  agb_after%lonname = "lon"
+  agb_after%latname = "lat"
+
+
+  bgb_before%varname = "BGB"
+  bgb_before%lonname = "lon"
+  bgb_before%latname = "lat"
+
+  bgb_after%varname = "BGB"
+  bgb_after%lonname = "lon"
+  bgb_after%latname = "lat"
+
+  soc_before%varname = "SOC"
+  soc_before%lonname = "lon"
+  soc_before%latname = "lat"
+
+  soc_after%varname = "SOC"
+  soc_after%lonname = "lon"
+  soc_after%latname = "lat"
+  
+  do k = 1991, 2018
     write(year, '(i4)') k
     
     write(*,*) "Aboveground - Belowground biomass - Soil Organic Carbon Stock ", year
 
-    if(k.eq.1990) then
-      call readgrid(trim(adjustl(input_dir))//"classification"//year//".nc", lu_before)
-
-      !AGB --------------      
-      call genInitialAGB(agb_before, pre_agb, lu_before)
-      call genInitialBGB(bgb_before, pre_bgb, lu_before)
-      call genInitialSOC(soc_before, pre_soc, lu_before)
-      
-      call writegrid(trim(adjustl(output_dir))//"AGB"//year//".nc", agb_before)
-      call writegrid(trim(adjustl(output_dir))//"BGB"//year//".nc", bgb_before)
-      call writegrid(trim(adjustl(output_dir))//"SOC"//year//".nc", soc_before)
-      
-      call dealloc(lu_before)
-      call dealloc(agb_before)
-      call dealloc(bgb_before)
-      call dealloc(soc_before)
-    else
-      !Pools of the next year
-      write(last_year, '(i4)') k - 1
+    !Pools of the next year
+    write(last_year, '(i4)') k - 1
     
-      call readgrid(trim(adjustl(input_dir))//"classification"//last_year//".nc", lu_before)
-      call readgrid(trim(adjustl(input_dir))//"classification"//year//".nc", lu_after)
-      
-      call readgrid(trim(adjustl(output_dir))//"AGB"//last_year//".nc", agb_before)
-      call readgrid(trim(adjustl(output_dir))//"BGB"//last_year//".nc", bgb_before)
-      call readgrid(trim(adjustl(output_dir))//"SOC"//last_year//".nc", soc_before)
+    call readgrid(trim(adjustl(input_dir))//"aaf_classification"//last_year//"v30.nc", lu_before)
+    call readgrid(trim(adjustl(input_dir))//"aaf_classification"//year//"v30.nc", lu_after)
+   
+    call readgrid(trim(adjustl(output_dir))//"AGB"//last_year//".nc", agb_before)
+    call readgrid(trim(adjustl(output_dir))//"BGB"//last_year//".nc", bgb_before)
+    call readgrid(trim(adjustl(output_dir))//"SOC"//last_year//".nc", soc_before)
 
-      call genAGB(agb_after, agb_before, lu_after, lu_before)
-      call genBGB(bgb_after, bgb_before, lu_after, lu_before)
-      call genSOC(soc_after, soc_before, lu_after, lu_before)
-      
-      call writegrid(trim(adjustl(output_dir))//"AGB"//year//".nc", agb_after)
-      call writegrid(trim(adjustl(output_dir))//"BGB"//year//".nc", bgb_after)
-      call writegrid(trim(adjustl(output_dir))//"SOC"//year//".nc", soc_after)
+    call genAGB(agb_after, agb_before, lu_after, lu_before)
+    call genBGB(bgb_after, bgb_before, lu_after, lu_before)
+    call genSOC(soc_after, soc_before, lu_after, lu_before)
+    
+    call writegrid(trim(adjustl(output_dir))//"AGB"//year//".nc", agb_after)
+    call writegrid(trim(adjustl(output_dir))//"BGB"//year//".nc", bgb_after)
+    call writegrid(trim(adjustl(output_dir))//"SOC"//year//".nc", soc_after)
 
-      call dealloc(lu_before)
-      call dealloc(lu_after)
-      call dealloc(agb_after)
-      call dealloc(agb_before)
-      call dealloc(bgb_before)
-      call dealloc(soc_before)
-    end if
+    call dealloc(lu_before)
+    call dealloc(lu_after)
+    call dealloc(agb_after)
+    call dealloc(agb_before)
+    call dealloc(bgb_before)
+    call dealloc(soc_before)
   end do
 
 end program calcCarbon

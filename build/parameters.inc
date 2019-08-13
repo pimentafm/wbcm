@@ -1,6 +1,6 @@
 ! Initial parameters
-input_dir = "/home/fernando/Documents/workspace/wbcm/build/database/input/"
-output_dir = "/home/fernando/Documents/workspace/wbcm/build/database/output/"
+input_dir = "/home/fernando/Documents/workspace/atmosfera-biosfera/emily/wbcm_input/"
+output_dir = "/home/fernando/Documents/workspace/atmosfera-biosfera/emily/wbcm_output/"
 
 !1 - Forest formation
 !2 - Savanna formation
