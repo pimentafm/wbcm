@@ -26,7 +26,7 @@ Fernando Martins Pimenta
 
 **Research Engineer** - Research Group on Atmosphere-Biosphere Interaction
 
-**Student of Surveying and Cartographic Engineering** - Federal University of Viçosa - Brazil
+**Surveying and Cartographic Engineering** - Federal University of Viçosa - Brazil
  
 **Bachelor of Biosystems Engineer** - Federal University of São João del-Rei - Brazil
  
