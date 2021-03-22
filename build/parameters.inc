@@ -2,6 +2,17 @@
 input_dir = "/home/fernando/Documents/workspace/atmosfera-biosfera/emily/wbcm_input/"
 output_dir = "/home/fernando/Documents/workspace/atmosfera-biosfera/emily/wbcm_output/"
 
+r_dir = "/home/fernando/Documents/workspace/atmosfera-biosfera/emily/random_normal_agbbgbsoc/"
+
+agbFiles = (/"rnagb_floresta.txt", "rnagb_savana.txt  ", "rnagb_campo.txt   ", "rnagb_seq_past.txt", &
+           "rnagb_seq.txt     ", "rnagb_irr.txt     ", "rnagb_pastagem.txt"/)
+
+bgbFiles = (/"rnbgb_floresta.txt", "rnbgb_savana.txt  ", "rnbgb_campo.txt   ", "rnbgb_seq_past.txt", &
+           "rnbgb_seq.txt     ", "rnbgb_irr.txt     ", "rnbgb_pastagem.txt"/)
+
+socFiles = (/"rnsoc_floresta.txt", "rnsoc_savana.txt  ", "rnsoc_campo.txt   ", "rnsoc_seq_past.txt", &
+           "rnsoc_seq.txt     ", "rnsoc_irr.txt     ", "rnsoc_pastagem.txt"/)
+
 !1 - Forest formation
 !2 - Savanna formation
 !3 - Grassland

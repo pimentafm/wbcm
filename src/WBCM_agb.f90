@@ -43,62 +43,9 @@
 !           emilyy.ane@gmail.com
 !:=============================================================================
 
-!String to int
-!elemental subroutine str2int(str,int,stat)
-!  ! Arguments
-!  character(len=*),intent(in) :: str
-!  integer,intent(out)         :: int
-!  integer,intent(out)         :: stat
-!
-!  read(str,*,iostat=stat)  int
-!end subroutine str2int
-
-subroutine genInitialAGB(agb_before, pre_agb, lu_before)
-  ! Calculate the above ground biomass for the first year of the landuse time serie
-
-  !Variables
-    ! pre_agb: Above ground biomass in the past
-    ! lu_before: Landuse classification of the first year of time serie
-    ! avgAGB: Average above ground biomass of the classification dataset
-   
-    !Output
-      ! agb_before: Above ground biomass of the first year of the landuse time serie
-
-  type(nc2d_float_lld) :: pre_agb, agb_before
-  type(nc2d_byte_lld) :: lu_before
-
-  integer(kind=4) :: i, j
-
-  agb_before = pre_agb
-
-  do i = 1, lu_before%nlons
-    !$omp parallel do private(j)
-    do j = 1, lu_before%nlats
-      if(lu_before%ncdata(i,j).le.3.and.lu_before%ncdata(i,j).ne.lu_before%FillValue) then
-        agb_before%ncdata(i,j) = pre_agb%ncdata(i,j)
-      else if(lu_before%ncdata(i,j).eq.4) then
-        agb_before%ncdata(i,j) = avgAGB(4)
-      else if(lu_before%ncdata(i,j).eq.5) then
-        agb_before%ncdata(i,j) = avgAGB(5)
-      else if(lu_before%ncdata(i,j).eq.6) then
-        agb_before%ncdata(i,j) = avgAGB(6)
-      else if(lu_before%ncdata(i,j).eq.7) then
-        agb_before%ncdata(i,j) = avgAGB(7)
-      else if(lu_before%ncdata(i,j).eq.8.or.lu_before%ncdata(i,j).eq.9) then
-        agb_before%ncdata(i,j) = 0.0
-      else
-        agb_before%ncdata(i,j) = -9999.0
-      end if
-    end do
-    !$omp end parallel do
-  end do
-
-  agb_before%varunits = 't ha-1'
-
-end subroutine genInitialAGB
-
 !Calcula AGB atual
-subroutine genAGB(agb_after, agb_before, lu_after, lu_before)
+subroutine genAGB(agb_after, agb_before, lu_after, lu_before,floresta, &
+                  savana, campo, seqpast, sequeiro, irrigado, pastagem)
   ! calculates the above-ground biomass of the first year of 
   ! the land use series considering the biomass calculated before.
 
@@ -113,45 +60,24 @@ subroutine genAGB(agb_after, agb_before, lu_after, lu_before)
 
   type(nc2d_float_lld) :: agb_after, agb_before
   type(nc2d_byte_lld) :: lu_after, lu_before
-
   integer(kind=4) :: i, j
+  real(kind=4), dimension(:), allocatable :: floresta, savana, campo, seqpast, sequeiro, irrigado, pastagem
 
   agb_after = agb_before
 
-  where(lu_after%ncdata.eq.lu_before%ncdata) agb_after%ncdata = 0.0
-
-  do i = 1, agb_before%nlons
-    !$omp parallel do private(j)
-    do j = 1, agb_before%nlats
-    !Change: natural -> natural
-      !Forest -> Savanna, grasslands
-      if(lu_before%ncdata(i,j).eq.1.and.lu_after%ncdata(i,j).ge.2.and.lu_after%ncdata(i,j).le.3) then
-        agb_after%ncdata(i,j) = avgAGB(lu_after%ncdata(i,j)) - agb_before%ncdata(i,j)
-      !Savanna -> grasslands
-      else if(lu_before%ncdata(i,j).eq.2.and.lu_after%ncdata(i,j).eq.3) then
-        agb_after%ncdata(i,j) = avgAGB(lu_after%ncdata(i,j)) - agb_before%ncdata(i,j)
-      !Savanna -> forest
-      else if(lu_before%ncdata(i,j).eq.2.and.lu_after%ncdata(i,j).eq.1) then
-        agb_after%ncdata(i,j) = (avgAGB(lu_after%ncdata(i,j)) - agb_before%ncdata(i,j)) + 0.485*cGrow(lu_after%ncdata(i,j))
-      !Grasslands -> forest, savanna 
-      else if(lu_before%ncdata(i,j).eq.3.and.lu_after%ncdata(i,j).eq.1.or.lu_after%ncdata(i,j).eq.2) then
-        agb_after%ncdata(i,j) = (avgAGB(lu_after%ncdata(i,j)) - agb_before%ncdata(i,j)) + 0.485*cGrow(lu_after%ncdata(i,j))
-    !Change: natural -> crop
-      else if(lu_before%ncdata(i,j).le.3.and.lu_after%ncdata(i,j).ge.4.and.lu_after%ncdata(i,j).lt.8) then
-        !Não usa taxa de crescimento anual. Foi considerada nula porque o incremento é igual a perda anual
-        agb_after%ncdata(i,j) = avgAGB(lu_after%ncdata(i,j)) - agb_before%ncdata(i,j)
-      !Change: Crop -> crop
-      else if(lu_before%ncdata(i,j).ge.4.and.lu_before%ncdata(i,j).lt.8.and. &
-              lu_after%ncdata(i,j).ge.4.and.lu_after%ncdata(i,j).lt.8) then
-        agb_after%ncdata(i,j) = avgAGB(lu_after%ncdata(i,j)) - agb_before%ncdata(i,j)
-      !Change: Crop -> natural (vegetation regrowth)
-      else if(lu_before%ncdata(i,j).ge.4.and.lu_before%ncdata(i,j).lt.8.and.lu_after%ncdata(i,j).le.3) then
-        !Please check NPP units in initial parameters
-        agb_after%ncdata(i,j) = avgAGB(lu_after%ncdata(i,j)) - agb_before%ncdata(i,j)
-      end if
-    end do
-    !$omp end parallel do
+  do i = 1, agb_after%nlons
+    !$omp parallel do
+    do j = 1, agb_after%nlats
+      if(lu_after%ncdata(i,j).ne.lu_before%ncdata(i,j)) then
+        if(lu_after%ncdata(i,j).eq.1) agb_after%ncdata(i,j) = floresta(random_uniform(0, 100000))
+        if(lu_after%ncdata(i,j).eq.2) agb_after%ncdata(i,j) = savana(random_uniform(0, 100000))
+        if(lu_after%ncdata(i,j).eq.3) agb_after%ncdata(i,j) = campo(random_uniform(0, 100000))
+        if(lu_after%ncdata(i,j).eq.4) agb_after%ncdata(i,j) = seqpast(random_uniform(0, 100000))
+        if(lu_after%ncdata(i,j).eq.5) agb_after%ncdata(i,j) = sequeiro(random_uniform(0, 100000))
+        if(lu_after%ncdata(i,j).eq.6) agb_after%ncdata(i,j) = irrigado(random_uniform(0, 100000))
+        if(lu_after%ncdata(i,j).eq.7) agb_after%ncdata(i,j) = pastagem(random_uniform(0, 100000))
+     end if
+   end do
+   !$omp end parallel do
   end do
-  
-  agb_before = agb_after
 end subroutine genAGB

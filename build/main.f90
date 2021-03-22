@@ -62,10 +62,102 @@ program calcCarbon
 
   ! ------- Auxiliary variables
   !Initialize the input parameters
-  integer(kind=4) :: k
+  integer(kind=4) :: i, k, seed
+  integer(kind=4), dimension(7) :: nrows
   character(len=4) :: year, last_year
 
+  real(kind=4), dimension(:), allocatable :: afloresta, asavana, acampo, aseqpast, asequeiro, airrigado, apastagem
+  real(kind=4), dimension(:), allocatable :: bfloresta, bsavana, bcampo, bseqpast, bsequeiro, birrigado, bpastagem
+  real(kind=4), dimension(:), allocatable :: cfloresta, csavana, ccampo, cseqpast, csequeiro, cirrigado, cpastagem
+
   include "parameters.inc"
+
+  do i = 100, 700, 100
+    open(i, file=trim(adjustl(r_dir))//trim(adjustl(agbFiles(i/100))), status="old")
+    nrows(i/100) = numRows(i)
+  end do
+
+  allocate(afloresta(nrows(1)))
+  allocate(asavana(nrows(2)))
+  allocate(acampo(nrows(3)))
+  allocate(asequeiro(nrows(4)))
+  allocate(airrigado(nrows(5)))
+  allocate(apastagem(nrows(6)))
+  allocate(aseqpast(nrows(7)))
+
+
+  write(*,*) "Reading randomized AGB data"
+  do i = 1, nrows(1)
+    read(100, *) afloresta(i)
+    read(200, *) asavana(i)
+    read(300, *) acampo(i)
+    read(400, *) aseqpast(i)
+    read(500, *) asequeiro(i)
+    read(600, *) airrigado(i)
+    read(700, *) apastagem(i)
+  end do
+
+  do i = 100, 700, 100
+    close(i)
+  end do
+
+  do i = 100, 700, 100
+    open(i, file=trim(adjustl(r_dir))//trim(adjustl(bgbFiles(i/100))), status="old")
+    nrows(i/100) = numRows(i)
+  end do
+
+  allocate(bfloresta(nrows(1)))
+  allocate(bsavana(nrows(2)))
+  allocate(bcampo(nrows(3)))
+  allocate(bsequeiro(nrows(4)))
+  allocate(birrigado(nrows(5)))
+  allocate(bpastagem(nrows(6)))
+  allocate(bseqpast(nrows(7)))
+
+
+  write(*,*) "Reading randomized BGB data"
+  do i = 1, nrows(1)
+    read(100, *) bfloresta(i)
+    read(200, *) bsavana(i)
+    read(300, *) bcampo(i)
+    read(400, *) bseqpast(i)
+    read(500, *) bsequeiro(i)
+    read(600, *) birrigado(i)
+    read(700, *) bpastagem(i)
+  end do
+
+  do i = 100, 700, 100
+    close(i)
+  end do
+  
+  do i = 100, 700, 100
+    open(i, file=trim(adjustl(r_dir))//trim(adjustl(socFiles(i/100))), status="old")
+    nrows(i/100) = numRows(i)
+  end do
+
+  allocate(cfloresta(nrows(1)))
+  allocate(csavana(nrows(2)))
+  allocate(ccampo(nrows(3)))
+  allocate(csequeiro(nrows(4)))
+  allocate(cirrigado(nrows(5)))
+  allocate(cpastagem(nrows(6)))
+  allocate(cseqpast(nrows(7)))
+
+
+  write(*,*) "Reading randomized SOC data"
+  do i = 1, nrows(1)
+    read(100, *) cfloresta(i)
+    read(200, *) csavana(i)
+    read(300, *) ccampo(i)
+    read(400, *) cseqpast(i)
+    read(500, *) csequeiro(i)
+    read(600, *) cirrigado(i)
+    read(700, *) cpastagem(i)
+  end do
+
+  do i = 100, 700, 100
+    close(i)
+  end do
 
   lu_before%varname = "class"
   lu_before%lonname = "lon"
@@ -102,6 +194,10 @@ program calcCarbon
   soc_after%latname = "lat"
   
   do k = 1991, 2018
+
+    call system_clock(seed)
+    call random_seed(seed)
+
     write(year, '(i4)') k
     
     write(*,*) "Aboveground - Belowground biomass - Soil Organic Carbon Stock ", year
@@ -116,9 +212,15 @@ program calcCarbon
     call readgrid(trim(adjustl(output_dir))//"BGB"//last_year//".nc", bgb_before)
     call readgrid(trim(adjustl(output_dir))//"SOC"//last_year//".nc", soc_before)
 
-    call genAGB(agb_after, agb_before, lu_after, lu_before)
-    call genBGB(bgb_after, bgb_before, lu_after, lu_before)
-    call genSOC(soc_after, soc_before, lu_after, lu_before)
+    call genAGB(agb_after, agb_before, lu_after, lu_before, afloresta, &
+                asavana, acampo, aseqpast, asequeiro, airrigado, apastagem)
+
+    call genBGB(bgb_after, bgb_before, lu_after, lu_before, bfloresta, &
+                bsavana, bcampo, bseqpast, bsequeiro, birrigado, bpastagem)
+
+    call genSOC(soc_after, soc_before, lu_after, lu_before, cfloresta, &
+                csavana, ccampo, cseqpast, csequeiro, cirrigado, cpastagem)
+
     
     call writegrid(trim(adjustl(output_dir))//"AGB"//year//".nc", agb_after)
     call writegrid(trim(adjustl(output_dir))//"BGB"//year//".nc", bgb_after)

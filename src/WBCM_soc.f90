@@ -43,108 +43,42 @@
 !           emilyy.ane@gmail.com
 !:=============================================================================
 
-!!!!!!!!!!!! Testing -------------------------
-!!!!!!!!!!!! ---------------------------------
-
-subroutine genInitialSOC(soc_before, pre_soc, lu_before)
-  ! Calculate the below ground biomass for the first year of the landuse time serie
-
-  !Variables
-    ! pre_soc: Below ground biomass in the past
-    ! lu_before: Landuse classification of the first year of time serie
-    ! avgSOC: Average below ground biomass of the classification dataset
-   
-    !Output
-      ! soc_before: Below ground biomass of the first year of the landuse time serie
-
-  type(nc2d_float_lld) :: pre_soc, soc_before
-  type(nc2d_byte_lld) :: lu_before
-
-  integer(kind=4) :: i, j
-
-  soc_before = pre_soc
-
-  do i = 1, lu_before%nlons
-    !$omp parallel do private(j)
-    do j = 1, lu_before%nlats
-      if(lu_before%ncdata(i,j).le.3.and.lu_before%ncdata(i,j).ne.lu_before%FillValue) then
-        soc_before%ncdata(i,j) = pre_soc%ncdata(i,j)
-      else if(lu_before%ncdata(i,j).eq.4) then
-        soc_before%ncdata(i,j) = avgSOC(4)
-      else if(lu_before%ncdata(i,j).eq.5) then
-        soc_before%ncdata(i,j) = avgSOC(5)
-      else if(lu_before%ncdata(i,j).eq.6) then
-        soc_before%ncdata(i,j) = avgSOC(6)
-      else if(lu_before%ncdata(i,j).eq.7) then
-        soc_before%ncdata(i,j) = avgSOC(7)
-      else if(lu_before%ncdata(i,j).eq.8.or.lu_before%ncdata(i,j).eq.9) then
-        soc_before%ncdata(i,j) = 0.0
-      else
-        soc_before%ncdata(i,j) = -9999.0
-      end if
-    end do
-    !$omp end parallel do
-  end do
-
-  soc_before%varunits = 't C ha-1'
-end subroutine genInitialSOC
-
 !Calcula SOC atual
-subroutine genSOC(soc_after, soc_before, lu_after, lu_before)
-  ! calculates the below-ground biomass of the first year of 
+subroutine genSOC(soc_after, soc_before, lu_after, lu_before,floresta, &
+                  savana, campo, seqpast, sequeiro, irrigado, pastagem)
+  ! calculates the above-ground biomass of the first year of 
   ! the land use series considering the biomass calculated before.
 
   !variables
-    ! soc_before: soil organic carbon stock of a year before
+    ! pre_before: above ground biomass of a year before
     ! lu_after: landuse classification of the next year
     ! lu_before: landuse classification of the year before
-    ! avgsoc: average of soil organic carbon stock of the classification dataset
-    
+    ! avgsoc: average above ground biomass of the classification dataset
+
     !output
-     ! soc_after: soil organic carbon stock of next year
+     ! soc_after: above ground biomass of next year
 
   type(nc2d_float_lld) :: soc_after, soc_before
   type(nc2d_byte_lld) :: lu_after, lu_before
-
   integer(kind=4) :: i, j
+  real(kind=4), dimension(:), allocatable :: floresta, savana, campo, seqpast, sequeiro, irrigado, pastagem
 
   soc_after = soc_before
 
-  where(lu_after%ncdata.eq.lu_before%ncdata) soc_after%ncdata = 0.0
-  
-  do i = 1, soc_before%nlons
-    !$omp parallel do private(j)
-    do j = 1, soc_before%nlats
-    !Change: natural -> natural
-      !Forest -> Savanna, grasslands
-      if(lu_before%ncdata(i,j).eq.1.and.lu_after%ncdata(i,j).ge.2.and.lu_after%ncdata(i,j).le.3) then
-        soc_after%ncdata(i,j) = avgSOC(lu_after%ncdata(i,j)) - soc_before%ncdata(i,j)
-      !Savanna -> grasslands
-      else if (lu_before%ncdata(i,j).eq.2.and.lu_after%ncdata(i,j).eq.3) then
-        soc_after%ncdata(i,j) = avgSOC(lu_after%ncdata(i,j)) - soc_before%ncdata(i,j)
-      !Savanna -> forest
-      else if(lu_before%ncdata(i,j).eq.2.and.lu_after%ncdata(i,j).eq.1) then
-        soc_after%ncdata(i,j) = (avgSOC(lu_after%ncdata(i,j)) - soc_before%ncdata(i,j))
-      !Grasslands -> forest, savanna 
-      else if(lu_before%ncdata(i,j).eq.3.and.lu_after%ncdata(i,j).eq.1.or.lu_after%ncdata(i,j).eq.2) then
-        soc_after%ncdata(i,j) = (avgSOC(lu_after%ncdata(i,j)) - soc_before%ncdata(i,j))
-    !Change: natural -> crop
-      else if(lu_before%ncdata(i,j).le.3.and.lu_after%ncdata(i,j).ge.4.and.lu_after%ncdata(i,j).lt.8) then
-        !Não usa taxa de crescimento anual. Foi considerada nula porque o incremento é igual a perda anual
-        soc_after%ncdata(i,j) = avgSOC(lu_after%ncdata(i,j)) - soc_before%ncdata(i,j)
-      !Change: Crop -> crop
-      else if(lu_before%ncdata(i,j).ge.4.and.lu_before%ncdata(i,j).lt.8.and. &
-              lu_after%ncdata(i,j).ge.4.and.lu_after%ncdata(i,j).lt.8) then
-        soc_after%ncdata(i,j) = avgSOC(lu_after%ncdata(i,j)) - soc_before%ncdata(i,j)
-      !Change: Crop -> natural (vegetation regrowth)
-      else if(lu_before%ncdata(i,j).ge.4.and.lu_before%ncdata(i,j).lt.8.and.lu_after%ncdata(i,j).le.3) then
-        !Please check NPP units in initial parameters
-        soc_after%ncdata(i,j) = avgSOC(lu_after%ncdata(i,j)) - soc_before%ncdata(i,j)
-      end if
-    end do
-    !$omp end parallel do
+  do i = 1, soc_after%nlons
+    !$omp parallel do
+    do j = 1, soc_after%nlats
+      if(lu_after%ncdata(i,j).ne.lu_before%ncdata(i,j)) then
+        if(lu_after%ncdata(i,j).eq.1) soc_after%ncdata(i,j) = floresta(random_uniform(0, 100000))
+        if(lu_after%ncdata(i,j).eq.2) soc_after%ncdata(i,j) = savana(random_uniform(0, 100000))
+        if(lu_after%ncdata(i,j).eq.3) soc_after%ncdata(i,j) = campo(random_uniform(0, 100000))
+        if(lu_after%ncdata(i,j).eq.4) soc_after%ncdata(i,j) = seqpast(random_uniform(0, 100000))
+        if(lu_after%ncdata(i,j).eq.5) soc_after%ncdata(i,j) = sequeiro(random_uniform(0, 100000))
+        if(lu_after%ncdata(i,j).eq.6) soc_after%ncdata(i,j) = irrigado(random_uniform(0, 100000))
+        if(lu_after%ncdata(i,j).eq.7) soc_after%ncdata(i,j) = pastagem(random_uniform(0, 100000))
+     end if
+   end do
+   !$omp end parallel do
   end do
-  
-  soc_before = soc_after
-
 end subroutine genSOC
+
